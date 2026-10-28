@@ -19,28 +19,38 @@ struct JumpFlow {
     enum Event { case none, launchPartner, missed, rescueExpired }
     private(set) var phase: Phase = .ready
     private(set) var rescueRemaining = JumpTuning.rescueDuration
+    private(set) var deadlineActive = false
     private var elapsed: TimeInterval = 0
     private var aimOrigin: Phase = .ready
 
-    var isRescuing: Bool { phase == .rescue || (phase == .aiming && aimOrigin == .rescue) }
+    var isRescuing: Bool { deadlineActive && phase != .over }
 
     mutating func reset() { self = JumpFlow() }
     mutating func beginAim() -> Bool {
         guard phase == .ready || phase == .rescue else { return false }
         aimOrigin = phase
+        deadlineActive = true
         phase = .aiming
         return true
     }
     mutating func cancelAim() { if phase == .aiming { phase = aimOrigin } }
     mutating func launch() { phase = .flying; elapsed = 0 }
-    mutating func land() { phase = .handoff; elapsed = 0 }
+    mutating func land() {
+        phase = .handoff; elapsed = 0
+        rescueRemaining = JumpTuning.rescueDuration
+        deadlineActive = false
+    }
     mutating func finish() { phase = .over }
     mutating func miss() {
         guard phase == .flying else { return }
         phase = .rescue
-        rescueRemaining = JumpTuning.rescueDuration
+        deadlineActive = true
     }
     mutating func advance(_ dt: TimeInterval, y: CGFloat, verticalSpeed: CGFloat, targetY: CGFloat) -> Event {
+        if isRescuing {
+            rescueRemaining = max(0, rescueRemaining - max(0, dt))
+            if rescueRemaining == 0 { finish(); return .rescueExpired }
+        }
         switch phase {
         case .handoff:
             elapsed += dt
@@ -54,12 +64,28 @@ struct JumpFlow {
                 miss()
                 return .missed
             }
-        case .rescue:
-            rescueRemaining = max(0, rescueRemaining - dt)
-            if rescueRemaining == 0 { finish(); return .rescueExpired }
         default: break
         }
         return .none
+    }
+}
+
+enum SteeringMode: String { case tilt, slide }
+
+struct SlideSteering {
+    private(set) var speed: CGFloat = 0
+    private var input: CGFloat = 0
+    mutating func move(displacement: CGFloat, screenWidth: CGFloat) {
+        input = max(-1, min(1, displacement / max(40, min(90, screenWidth * 0.18))))
+    }
+    mutating func release() { input = 0 }
+    mutating func reset() { self = SlideSteering() }
+    mutating func update(dt: TimeInterval) -> CGFloat {
+        let desired = input * JumpTuning.maxTiltSpeed
+        let rate = desired * speed < 0 || abs(desired) < abs(speed)
+            ? JumpTuning.tiltBrakeRate : JumpTuning.tiltResponseRate
+        speed += (desired - speed) * CGFloat(1 - exp(-rate * max(0, dt)))
+        return speed
     }
 }
 

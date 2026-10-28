@@ -80,8 +80,32 @@ final class LedgeSpawner {
                 gap = restJump ? 145 : CGFloat.random(in: difficulty.minimumGap...difficulty.maximumGap)
             }
         }
-        return LedgeNode(center: CGPoint(x: x, y: ledge.position.y + gap),
+        let result = LedgeNode(center: CGPoint(x: x, y: ledge.position.y + gap),
                          size: CGSize(width: width, height: GameConstants.ledgeSize.height),
                          isPrecision: precisionJump)
+        // Every eighth destination after height 100; never combine with precision.
+        if score >= 100 && score % 8 == 4 && !precisionJump {
+            result.trickAlternative = trickPlatform(opposite: result, above: ledge)
+            result.configureMotion()
+        }
+        return result
     }
+    private func trickPlatform(opposite bonus: LedgeNode, above base: LedgeNode) -> LedgeNode {
+        let width = min(72, sceneWidth * 0.24)
+        let low = max(width / 2 + 8, base.position.x - 135)
+        let high = min(sceneWidth - width / 2 - 8, base.position.x + 135)
+        let x = abs(low - bonus.position.x) > abs(high - bonus.position.x) ? low : high
+        let separation = (width + bonus.size.width) * 0.55 + 18 + 8
+        if abs(x - bonus.position.x) < separation {
+            let bonusMargin = bonus.size.width / 2 + 26
+            let bonusLow = max(bonusMargin, base.position.x - 135)
+            let bonusHigh = min(sceneWidth - bonusMargin, base.position.x + 135)
+            bonus.position.x = abs(bonusLow - x) > abs(bonusHigh - x) ? bonusLow : bonusHigh
+        }
+        let trick = LedgeNode(center: CGPoint(x: x, y: bonus.position.y),
+                              size: CGSize(width: width, height: GameConstants.ledgeSize.height))
+        trick.configureTrick()
+        return trick
+    }
+
 }

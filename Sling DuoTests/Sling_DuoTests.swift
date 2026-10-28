@@ -28,6 +28,133 @@ struct Sling_DuoTests {
         }
     }
 
+    @Test func routeFillsPhoneAndTabletAndPauseFreezesSimulation() {
+        for size in [CGSize(width: 390, height: 844), CGSize(width: 768, height: 1024)] {
+            let scene = GameScene(size: size)
+            let view = SKView(frame: CGRect(origin: .zero, size: size))
+            view.presentScene(scene)
+            let ledges = scene.children.compactMap { $0 as? LedgeNode }
+            #expect(ledges.count >= 4)
+            #expect((ledges.map { $0.position.y }.max() ?? 0) > size.height)
+            #expect(ledges.filter { $0.childNode(withName: "targetMarker") != nil }.count == 1)
+            scene.setGameplayPaused(true)
+            let positions = ledges.map { $0.position }
+            scene.update(1)
+            scene.update(5)
+            #expect(positions == ledges.map { $0.position })
+            scene.restartFromMenu()
+            #expect(scene.isPaused)
+            view.presentScene(nil)
+        }
+    }
+
+    @Test func deadlinePersistsThroughReleaseAndRepeatedMissesUntilCatch() {
+        var flow = JumpFlow()
+        _ = flow.beginAim()
+        _ = flow.advance(1, y: 0, verticalSpeed: 0, targetY: 100)
+        flow.launch()
+        _ = flow.advance(0.5, y: 200, verticalSpeed: 100, targetY: 100)
+        #expect(abs(flow.rescueRemaining - 2.5) < 0.001)
+        flow.miss()
+        #expect(abs(flow.rescueRemaining - 2.5) < 0.001)
+        _ = flow.beginAim()
+        flow.launch()
+        _ = flow.advance(0.5, y: 200, verticalSpeed: 100, targetY: 100)
+        flow.miss()
+        #expect(abs(flow.rescueRemaining - 2) < 0.001)
+        flow.land()
+        #expect(flow.rescueRemaining == JumpTuning.rescueDuration)
+        #expect(!flow.deadlineActive)
+    }
+
+    @Test func slideSteeringIsBoundedResponsiveAndFrameIndependent() {
+        func speed(rate: Double) -> CGFloat {
+            var steering = SlideSteering()
+            steering.move(displacement: 500, screenWidth: 390)
+            for _ in 0..<Int(rate) { _ = steering.update(dt: 1 / rate) }
+            return steering.speed
+        }
+        #expect(abs(speed(rate: 30) - speed(rate: 120)) < 0.01)
+        #expect(speed(rate: 60) <= JumpTuning.maxTiltSpeed)
+        var steering = SlideSteering()
+        steering.move(displacement: -100, screenWidth: 768)
+        for _ in 0..<30 { _ = steering.update(dt: 1.0 / 60) }
+        #expect(steering.speed < -250)
+        steering.release()
+        for _ in 0..<30 { _ = steering.update(dt: 1.0 / 60) }
+        #expect(abs(steering.speed) < 1)
+    }
+
+    @Test func bonusHasReachableNonoverlappingZeroPointAlternative() {
+        for width: CGFloat in [240, 390, 768] {
+            let spawner = LedgeSpawner(sceneWidth: width)
+            for _ in 0..<40 {
+                var base = spawner.startingLedge(y: 100)
+                for height in 100..<125 {
+                    let bonus = spawner.nextLedge(above: base, score: height)
+                    if bonus.isMovingPlatform {
+                        let trick = try! #require(bonus.trickAlternative)
+                        #expect(trick.reward == 0)
+                        #expect(trick.position.y == bonus.position.y)
+                        #expect(abs(trick.position.x - base.position.x) <= 135.001)
+                        #expect(abs(bonus.position.x - base.position.x) <= 135.001)
+                        let gap = abs(trick.position.x - bonus.position.x) - 18
+                        #expect(gap > (trick.size.width + bonus.size.width) * 0.55)
+                    } else { #expect(bonus.trickAlternative == nil) }
+                    base = bonus
+                }
+            }
+        }
+    }
+
+    @Test func holdingRescueAimStillConsumesTheDeadline() {
+        var flow = JumpFlow()
+        flow.launch()
+        flow.miss()
+        let began = flow.beginAim()
+        #expect(began)
+        _ = flow.advance(1.5, y: 0, verticalSpeed: 0, targetY: 100)
+        #expect(abs(flow.rescueRemaining - 2.5) < 0.001)
+        flow.cancelAim()
+        let again = flow.beginAim()
+        #expect(again)
+        let expired = flow.advance(2.6, y: 0, verticalSpeed: 0, targetY: 100)
+        #expect(expired == .rescueExpired)
+        #expect(flow.phase == .over)
+        var firstLaunch = JumpFlow()
+        _ = firstLaunch.beginAim()
+        _ = firstLaunch.advance(10, y: 0, verticalSpeed: 0, targetY: 100)
+        #expect(firstLaunch.phase == .over)
+    }
+
+    @Test func movingPlatformsRewardDoubleAndStopAfterLanding() {
+        for width: CGFloat in [240, 390, 768] {
+            let spawner = LedgeSpawner(sceneWidth: width)
+            var ledge = spawner.startingLedge(y: 100)
+            for height in 0..<150 {
+                let next = spawner.nextLedge(above: ledge, score: height)
+                if next.isMovingPlatform {
+                    #expect(height >= 100)
+                    #expect(!next.isPrecisionPlatform)
+                    #expect(next.reward == 2)
+                    let center = next.position.x
+                    next.setTarget(true)
+                    for _ in 0..<480 {
+                        next.advanceMotion(1.0 / 120)
+                        #expect(abs(next.position.x - center) <= 18.001)
+                        #expect(next.position.x - next.size.width / 2 >= 0)
+                        #expect(next.position.x + next.size.width / 2 <= width)
+                    }
+                    next.setTarget(false)
+                    let stopped = next.position
+                    next.advanceMotion(1)
+                    #expect(next.position == stopped)
+                } else { #expect(next.reward == 1) }
+                ledge = next
+            }
+        }
+    }
+
     @Test func restartingRopeClearsPreviousFailure() {
         let rope = RubberRopeSystem()
         _ = rope.springForce(anchor: .zero, free: CGPoint(x: 0, y: -500), velocity: .zero,

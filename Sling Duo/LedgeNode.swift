@@ -3,6 +3,22 @@ import SpriteKit
 final class LedgeNode: SKShapeNode {
     let size: CGSize
     let isPrecisionPlatform: Bool
+    private(set) var isMovingPlatform = false
+    private(set) var isTrickPlatform = false
+    var trickAlternative: LedgeNode?
+    var reward: Int { isTrickPlatform ? 0 : (isMovingPlatform ? 2 : 1) }
+    func configureTrick() {
+        isTrickPlatform = true
+        let badge = SKLabelNode(fontNamed: "AvenirNext-Bold")
+        badge.text = "0"
+        badge.fontSize = 12
+        badge.fontColor = .white.withAlphaComponent(0.7)
+        badge.position.y = -24
+        addChild(badge)
+    }
+    private var motionCenter: CGFloat = 0
+    private var motionTime: TimeInterval = 0
+    private var motionActive = false
     private let targetRim = SKShapeNode()
 
     init(center: CGPoint, size: CGSize = GameConstants.ledgeSize, isPrecision: Bool = false, artVariant: Int? = nil) {
@@ -29,6 +45,24 @@ final class LedgeNode: SKShapeNode {
 
     required init?(coder aDecoder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
+    }
+
+    func configureMotion() {
+        isMovingPlatform = true
+        motionCenter = position.x
+        let badge = SKLabelNode(fontNamed: "AvenirNext-Bold")
+        badge.name = "movingBadge"
+        badge.text = "↔ 2×"
+        badge.fontSize = 12
+        badge.fontColor = .systemYellow
+        badge.position.y = -24
+        addChild(badge)
+    }
+
+    func advanceMotion(_ dt: TimeInterval) {
+        guard motionActive else { return }
+        motionTime += dt
+        position.x = motionCenter + sin(motionTime * .pi / 2) * 18
     }
 
     var topY: CGFloat { position.y + size.height / 2 }
@@ -67,9 +101,12 @@ final class LedgeNode: SKShapeNode {
     }
 
     func setTarget(_ targeted: Bool) {
+        motionActive = targeted && isMovingPlatform
         removeAction(forKey: "targetPulse")
         childNode(withName: "targetMarker")?.removeFromParent()
-        if isPrecisionPlatform {
+        if isMovingPlatform {
+            strokeColor = .systemYellow
+        } else if isPrecisionPlatform {
             strokeColor = SKColor(red: 1, green: 0.78, blue: 0.42, alpha: 1)
         } else {
             strokeColor = targeted

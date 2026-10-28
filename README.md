@@ -5,13 +5,15 @@ An iPhone arcade prototype about two climbers connected by an elastic rope. Laun
 ## Play
 
 - Drag and release to make the first sling. Your comfortable phone angle at release becomes the neutral tilt position.
-- Tilt left or right to steer the airborne climber.
+- Tilt left or right to steer the airborne climber, or choose Controls: Slide in the pause menu. In Slide mode, touch anywhere during flight and drag horizontally relative to that touch; release to brake. The choice survives relaunches.
 - Catch a platform to swap roles and automatically launch the partner.
-- A miss opens a four-second window to start a rescue sling.
+- The first manual pull starts a four-second deadline. It continues through release, flight and repeated misses; only a successful catch restores it. After an automatic jump misses, the same rescue deadline starts.
 - Tap anywhere after game over to restart. The best score is saved locally.
+- Pause with the pause button; Continue gives a three-second countdown. Returning from the background also requires Continue.
+- HEIGHT counts catches; SCORE awards one point per catch and two for moving platforms.
 - Use the speaker button to mute sound; the preference survives relaunches.
 
-The first three jumps are forgiving. Later platforms require sideways steering, and small gold platforms appear from the seventh jump, once every five jumps. Automatic launches provide height rather than horizontal aim.
+The first three jumps are forgiving. Later platforms require sideways steering, and small gold platforms appear from the seventh jump, once every five jumps. Automatic launches provide height rather than horizontal aim. The route is visible ahead to fill the viewport. After height 100, occasional gold platforms move slowly sideways and award double points; precision platforms never move. Each moving 2× platform has an alternative 0-point trick platform at the same height. Both can be caught; choosing the trick continues the climb without awarding points.
 
 ## Run
 
@@ -29,6 +31,6 @@ A physical iPhone is needed to evaluate tilt, haptics, and silent-switch behavio
 
 ## Tests
 
-Run the test targets with **Product → Test** in Xcode. Unit tests cover jump transitions, rescue timing, tilt response, reachability, precision platforms, and preventing unattended climbing. A UI test checks that mute preferences persist across relaunches.
+Run the test targets with **Product → Test** in Xcode. Unit tests cover jump transitions, rescue timing, tilt response, reachability, precision platforms, and preventing unattended climbing. UI tests cover pause/resume, background interruption, and mute preference persistence.
 
 This repository is an actively tuned gameplay prototype.
