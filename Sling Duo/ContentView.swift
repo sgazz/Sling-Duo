@@ -6,6 +6,7 @@ struct ContentView: View {
     @Environment(\.scenePhase) private var phase
     @AppStorage("SlingDuo.soundEnabled") private var soundEnabled = true
     @AppStorage("SlingDuo.steeringMode") private var steeringMode = "tilt"
+    @AppStorage("SlingDuo.turboEnabled") private var turboEnabled = false
     @State private var paused = false
     @State private var countdown: Int?
     @State private var resumeTask: Task<Void, Never>?
@@ -34,7 +35,7 @@ struct ContentView: View {
                         Text("\(countdown)").font(.system(size: 80, weight: .heavy))
                             .accessibilityIdentifier("resumeCountdown")
                     } else {
-                        VStack(spacing: 24) {
+                        VStack(spacing: 20) {
                             Text("PAUSED").font(.title.bold())
                             Button("Continue") { resume() }.accessibilityIdentifier("continueGame")
                             Button("Restart") { scene.restartFromMenu(); resume() }
@@ -42,6 +43,10 @@ struct ContentView: View {
                                 steeringMode = steeringMode == "tilt" ? "slide" : "tilt"
                             }
                             .accessibilityIdentifier("steeringMode")
+                            Button(turboEnabled ? "Turbo experiment: On" : "Turbo experiment: Off") {
+                                turboEnabled.toggle()
+                            }
+                            .accessibilityIdentifier("turboToggle")
                             Button(soundEnabled ? "Sound: On" : "Sound: Off") { soundEnabled.toggle() }
                         }
                         .font(.title3.bold())
@@ -55,9 +60,11 @@ struct ContentView: View {
         }
         .statusBarHidden()
         .onAppear {
+            scene.turboEnabled = turboEnabled
             scene.soundEnabled = soundEnabled
             scene.steeringMode = SteeringMode(rawValue: steeringMode) ?? .tilt
         }
+        .onChange(of: turboEnabled) { _, enabled in scene.turboEnabled = enabled }
         .onChange(of: steeringMode) { _, mode in scene.steeringMode = SteeringMode(rawValue: mode) ?? .tilt }
         .onChange(of: soundEnabled) { _, enabled in scene.soundEnabled = enabled }
         .onChange(of: phase) { _, newPhase in

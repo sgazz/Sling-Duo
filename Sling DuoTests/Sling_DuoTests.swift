@@ -107,6 +107,62 @@ struct Sling_DuoTests {
         }
     }
 
+    @Test func precisionUsesActualContactBeforeSnap() {
+        let ledge = LedgeNode(center: CGPoint(x: 195, y: 300))
+        let center = ledge.grabPoint
+        let contact = ledge.grabContact(from: center + CGVector(dx: 0, dy: 70),
+                                        to: center + CGVector(dx: 0, dy: -70),
+                                        velocity: CGVector(dx: 0, dy: -900))!
+        #expect(CatchRewards.isPerfect(contact: contact, centerX: 195, width: ledge.size.width, verticalSpeed: -900))
+        #expect(!CatchRewards.isPerfect(contact: contact + CGVector(dx: ledge.size.width * 0.3, dy: 0),
+                                       centerX: 195, width: ledge.size.width, verticalSpeed: -900))
+        #expect(!CatchRewards.isPerfect(contact: contact, centerX: 195, width: ledge.size.width, verticalSpeed: 50))
+    }
+
+    @Test func comboAwardsOnlyEveryFifthCatchAndMissBreaksStreak() {
+        var rewards = CatchRewards()
+        for _ in 0..<4 {
+            let award = rewards.catchPlatform(basePoints: 1, perfect: false)
+            #expect(award.points == 1 && !award.combo)
+        }
+        let fifth = rewards.catchPlatform(basePoints: 2, perfect: true)
+        #expect(fifth.points == 5 && fifth.combo && fifth.perfect)
+        rewards.miss()
+        #expect(rewards.streak == 0)
+        let saved = rewards.catchPlatform(basePoints: 1, perfect: true)
+        #expect(saved.points == 2 && !saved.combo)
+        let trick = rewards.catchPlatform(basePoints: 0, perfect: true)
+        #expect(trick.points == 0 && !trick.perfect && !trick.combo)
+        #expect(rewards.streak == 0)
+    }
+
+    @Test func turboRampsEveryFiveSecondsAndStopsAtTripleSpeed() {
+        var tempo = ExperimentalTempo()
+        #expect(tempo.multiplier == 1)
+        tempo.advance(4.99)
+        #expect(tempo.multiplier == 1)
+        tempo.advance(0.01)
+        #expect(abs(tempo.multiplier - 1.05) < 0.0001)
+        tempo.advance(95)
+        #expect(tempo.multiplier == 2)
+        tempo.advance(100)
+        #expect(tempo.multiplier == 3)
+        tempo.advance(1000)
+        #expect(tempo.multiplier == 3)
+        tempo.reset()
+        #expect(tempo.multiplier == 1)
+    }
+
+    @Test func turboDoesNotAccelerateTheRealTimeDeadline() {
+        var flow = JumpFlow()
+        _ = flow.beginAim()
+        flow.launch()
+        _ = flow.advance(2, y: 200, verticalSpeed: 100, targetY: 100, realDelta: 1)
+        #expect(flow.rescueRemaining == 3)
+        let expired = flow.advance(6, y: 200, verticalSpeed: 100, targetY: 100, realDelta: 3)
+        #expect(expired == .rescueExpired)
+    }
+
     @Test func holdingRescueAimStillConsumesTheDeadline() {
         var flow = JumpFlow()
         flow.launch()

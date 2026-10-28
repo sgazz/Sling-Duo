@@ -59,6 +59,17 @@ final class GameScene: SKScene {
     private var drag: CGPoint?
     private var activeTouch: UITouch?
     private var upcoming: [LedgeNode] = []
+    private var rewards = CatchRewards()
+    var turboEnabled = false {
+        didSet {
+            guard oldValue != turboEnabled else { return }
+            tempo.reset()
+            accumulator = 0
+            updateTempoHUD()
+        }
+    }
+    private var tempo = ExperimentalTempo()
+    private let tempoLabel = SKLabelNode(fontNamed: "AvenirNext-Bold")
     private var points = 0
     private let pointsLabel = SKLabelNode(fontNamed: "AvenirNext-DemiBold")
     private var rescueWarningPlayed = false
@@ -81,6 +92,11 @@ final class GameScene: SKScene {
         if UIApplication.shared.applicationState == .active { startMotion() }
         guard !ready else { return }
         ready = true
+        tempoLabel.fontSize = 12
+        tempoLabel.fontColor = .systemYellow
+        tempoLabel.zPosition = 100
+        gameCamera.addChild(tempoLabel)
+        updateTempoHUD()
         pointsLabel.fontSize = 12
         pointsLabel.zPosition = 100
         gameCamera.addChild(pointsLabel)
@@ -202,6 +218,8 @@ final class GameScene: SKScene {
     }
 
     private func beginRescue() {
+        rewards.miss()
+        updatePointsHUD()
         steeringTouch = nil
         slide.reset()
         rescueWarningPlayed = false
@@ -227,7 +245,8 @@ final class GameScene: SKScene {
         scoreLabel.position = title.position + CGVector(dx: 0, dy: -50)
         pointsLabel.position = scoreLabel.position + CGVector(dx: 0, dy: -23)
         bestLabel.position = scoreLabel.position + CGVector(dx: 0, dy: -43)
-        recordToast.position = bestLabel.position + CGVector(dx: 0, dy: -29)
+        recordToast.position = bestLabel.position + CGVector(dx: 0, dy: -49)
+        tempoLabel.position = bestLabel.position + CGVector(dx: 0, dy: -20)
         rescueTrack.position = CGPoint(x: 0, y: -size.height / 2 + 83)
         rescueFill.position = rescueTrack.position
         retryCard.position = CGPoint(x: 0, y: 15)
@@ -255,7 +274,10 @@ final class GameScene: SKScene {
         coral.resetPersonality()
         score = 0
         points = 0
-        pointsLabel.text = "SCORE 0"
+        tempo.reset()
+        updateTempoHUD()
+        rewards = CatchRewards()
+        updatePointsHUD()
         pointsLabel.isHidden = false
         upcoming.removeAll()
         steeringTouch = nil
@@ -310,10 +332,15 @@ final class GameScene: SKScene {
         defer { previousTime = currentTime }
         guard !ended else { return }
         let elapsed = previousTime == 0 ? 1.0 / 60 : max(0, min(1.0 / 15, currentTime - previousTime))
-        accumulator += elapsed
+        if turboEnabled && (flow.phase != .ready || flow.deadlineActive) {
+            tempo.advance(elapsed)
+            updateTempoHUD()
+        }
+        let multiplier = turboEnabled ? tempo.multiplier : 1
+        accumulator += elapsed * multiplier
         let step = 1.0 / 120
         while accumulator >= step {
-            simulate(step)
+            simulate(step, realDelta: step / multiplier)
             accumulator -= step
             if ended { accumulator = 0; break }
         }
@@ -321,7 +348,7 @@ final class GameScene: SKScene {
         if drag == nil {
             gameCamera.position.y = ClimbCamera.nextY(current: gameCamera.position.y,
                 anchorY: anchor.position.y, jumperY: jumper.position.y,
-                height: size.height, inFlight: flight, dt: elapsed)
+                height: size.height, inFlight: flight, dt: elapsed * multiplier)
         }
         fillUpcoming()
         updateRescueMeter()
@@ -340,12 +367,17 @@ final class GameScene: SKScene {
         }
     }
 
-    private func simulate(_ dt: TimeInterval) {
+    private func updateTempoHUD() {
+        tempoLabel.isHidden = !turboEnabled
+        tempoLabel.text = String(format: "TURBO ×%.2f", tempo.multiplier)
+    }
+
+    private func simulate(_ dt: TimeInterval, realDelta: TimeInterval) {
         let targetStartX = nextLedge.position.x
         nextLedge.advanceMotion(dt)
         anchor.position = current.grabPoint
         if let target = drag {
-            if flow.advance(dt, y: jumper.position.y, verticalSpeed: 0, targetY: nextLedge.grabPoint.y) == .rescueExpired {
+            if flow.advance(dt, y: jumper.position.y, verticalSpeed: 0, targetY: nextLedge.grabPoint.y, realDelta: realDelta) == .rescueExpired {
                 finish()
                 return
             }
@@ -356,13 +388,13 @@ final class GameScene: SKScene {
         }
         if flow.phase == .handoff {
             // Read input during the handoff so holding a tilt doesn't feel unresponsive.
-            _ = tilt.update(sample: gravityInput, dt: dt)
+            _ = tilt.update(sample: gravityInput, dt: realDelta)
             handoffElapsed += dt
             let fraction = min(1, CGFloat(handoffElapsed / JumpTuning.handoffDuration))
             let eased = fraction * fraction * (3 - 2 * fraction)
             jumper.position = handoffStart + (handoffTarget - handoffStart) * eased
             rope.updateDragVisual(anchor: anchor.position, free: jumper.position)
-            if flow.advance(dt, y: jumper.position.y, verticalSpeed: 0, targetY: nextLedge.grabPoint.y) == .launchPartner {
+            if flow.advance(dt, y: jumper.position.y, verticalSpeed: 0, targetY: nextLedge.grabPoint.y, realDelta: realDelta) == .launchPartner {
                 velocity = PartnerLaunch.velocity(from: jumper.position, anchor: anchor.position, target: nextLedge.grabPoint)
                 rope.reset()
                 rope.launchPulse()
@@ -375,7 +407,7 @@ final class GameScene: SKScene {
             return
         }
         let steeringSpeed = flight ? (steeringMode == .tilt
-            ? tilt.update(sample: gravityInput, dt: dt) : slide.update(dt: dt)) : 0
+            ? tilt.update(sample: gravityInput, dt: realDelta) : slide.update(dt: realDelta)) : 0
         let actualVelocity = velocity + CGVector(dx: steeringSpeed, dy: 0)
         var force = GameConstants.gravity
         force += rope.springForce(anchor: anchor.position, free: jumper.position, velocity: actualVelocity, deltaTime: dt)
@@ -385,21 +417,22 @@ final class GameScene: SKScene {
                                dt: dt, steeringSpeed: steeringSpeed)
         jumper.position = position
         jumper.setFlightLean(max(-1, min(1, (velocity.dx + steeringSpeed) / 450)))
-        if flow.deadlineActive && flow.rescueRemaining <= dt {
-            _ = flow.advance(dt, y: jumper.position.y, verticalSpeed: velocity.dy, targetY: nextLedge.grabPoint.y)
+        if flow.deadlineActive && flow.rescueRemaining <= realDelta {
+            _ = flow.advance(dt, y: jumper.position.y, verticalSpeed: velocity.dy, targetY: nextLedge.grabPoint.y, realDelta: realDelta)
             finish()
             return
         }
         if flight, let trick = nextLedge.trickAlternative,
-           trick.canGrab(from: previousPosition, to: jumper.position, velocity: velocity) {
-            land(on: trick)
+           let contact = trick.grabContact(from: previousPosition, to: jumper.position, velocity: velocity) {
+            land(on: trick, contact: contact)
             return
         }
-        if flight && nextLedge.canGrab(from: previousPosition + CGVector(dx: nextLedge.position.x - targetStartX, dy: 0), to: jumper.position, velocity: velocity) {
-            land()
+        let relativeStart = previousPosition + CGVector(dx: nextLedge.position.x - targetStartX, dy: 0)
+        if flight, let contact = nextLedge.grabContact(from: relativeStart, to: jumper.position, velocity: velocity) {
+            land(contact: contact)
             return
         }
-        let event = flow.advance(dt, y: jumper.position.y, verticalSpeed: velocity.dy, targetY: nextLedge.grabPoint.y)
+        let event = flow.advance(dt, y: jumper.position.y, verticalSpeed: velocity.dy, targetY: nextLedge.grabPoint.y, realDelta: realDelta)
         if event == .missed {
             beginRescue()
         } else if event == .rescueExpired {
@@ -489,9 +522,18 @@ final class GameScene: SKScene {
         return anchor.position + offset.normalized() * min(offset.length, GameConstants.maxDragDistance)
     }
 
-    private func land(on chosen: LedgeNode? = nil) {
+    private func updatePointsHUD() {
+        let progress = rewards.streak % 5
+        pointsLabel.text = "SCORE \(points) • COMBO \(progress)/5"
+    }
+
+    private func land(on chosen: LedgeNode? = nil, contact: CGPoint) {
         let destination = chosen ?? nextLedge!
         let tookTrick = destination.isTrickPlatform
+        // Judge precision before snapping the climber to the platform center.
+        let perfect = CatchRewards.isPerfect(contact: contact, centerX: destination.position.x,
+                                             width: destination.size.width, verticalSpeed: velocity.dy)
+        let award = rewards.catchPlatform(basePoints: destination.reward, perfect: perfect)
         if tookTrick { nextLedge.removeFromParent() }
         else { nextLedge.trickAlternative?.removeFromParent() }
         jumper.position = destination.grabPoint
@@ -505,9 +547,9 @@ final class GameScene: SKScene {
         handoffElapsed = 0
         tilt.stopSteering()
         current = destination
-        let earned = current.reward
+        let earned = award.points
         points += earned
-        pointsLabel.text = "SCORE \(points)"
+        updatePointsHUD()
         upcoming.removeFirst()
         if tookTrick {
             // Regenerate from the chosen branch so subsequent jumps stay reachable.
@@ -554,16 +596,20 @@ final class GameScene: SKScene {
         hint.text = score % 5 == 0
             ? "\(score) UP. STILL TOGETHER!"
             : ["TEAMWORK!", "STILL FRIENDS!", "NO ONE PANIC.", "UP WE GO!"][score % 4]
-        sound.play(.grab, step: score)
-        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        sound.play(.grab, step: score + (award.perfect ? 2 : 0))
+        if award.combo { UINotificationFeedbackGenerator().notificationOccurred(.success) }
+        else { UIImpactFeedbackGenerator(style: .light).impactOccurred(intensity: award.perfect ? 1 : 0.5) }
         let pop = SKLabelNode(fontNamed: "AvenirNext-Heavy")
-        pop.text = earned == 0 ? "0 • TRICK!" : (earned == 2 ? "+2 BONUS!" : "+1")
-        pop.fontSize = 24
-        pop.fontColor = .white
+        if award.combo {
+            pop.text = award.perfect ? "PERFECT • COMBO! +\(earned)" : "COMBO 5! +\(earned)"
+        } else if award.perfect { pop.text = "PERFECT! +\(earned)" }
+        else { pop.text = earned == 0 ? "0 • TRICK!" : "+\(earned)" }
+        pop.fontSize = award.combo ? 18 : 22
+        pop.fontColor = award.perfect || award.combo ? .systemYellow : .white
         pop.position = anchor.position + CGVector(dx: 0, dy: 35)
         pop.zPosition = 40
         addChild(pop)
-        pop.run(.sequence([.group([.moveBy(x: 0, y: 45, duration: 0.5), .fadeOut(withDuration: 0.5)]), .removeFromParent()]))
+        pop.run(.sequence([.group([.moveBy(x: 0, y: 45, duration: 0.8), .fadeOut(withDuration: 0.8)]), .removeFromParent()]))
     }
 
 

@@ -59,6 +59,27 @@ final class Sling_DuoUITests: XCTestCase {
     }
 
     @MainActor
+    func testTurboTogglePersistsAndCanBeDisabled() {
+        let app = XCUIApplication()
+        app.launch()
+        XCTAssertTrue(app.buttons["pauseGame"].waitForExistence(timeout: 10))
+        app.buttons["pauseGame"].tap()
+        let turbo = app.buttons["turboToggle"]
+        XCTAssertTrue(turbo.waitForExistence(timeout: 3))
+        let initial = turbo.label
+        turbo.tap()
+        let changed = initial == "Turbo experiment: Off" ? "Turbo experiment: On" : "Turbo experiment: Off"
+        XCTAssertEqual(turbo.label, changed)
+        app.terminate()
+        app.launch()
+        app.buttons["pauseGame"].tap()
+        XCTAssertTrue(turbo.waitForExistence(timeout: 3))
+        XCTAssertEqual(turbo.label, changed)
+        turbo.tap()
+        XCTAssertEqual(turbo.label, initial)
+    }
+
+    @MainActor
     func testSoundPreferenceSurvivesRelaunch() {
         let app = XCUIApplication()
         app.launch()

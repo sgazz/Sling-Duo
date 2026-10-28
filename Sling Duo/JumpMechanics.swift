@@ -46,9 +46,9 @@ struct JumpFlow {
         phase = .rescue
         deadlineActive = true
     }
-    mutating func advance(_ dt: TimeInterval, y: CGFloat, verticalSpeed: CGFloat, targetY: CGFloat) -> Event {
+    mutating func advance(_ dt: TimeInterval, y: CGFloat, verticalSpeed: CGFloat, targetY: CGFloat, realDelta: TimeInterval? = nil) -> Event {
         if isRescuing {
-            rescueRemaining = max(0, rescueRemaining - max(0, dt))
+            rescueRemaining = max(0, rescueRemaining - max(0, realDelta ?? dt))
             if rescueRemaining == 0 { finish(); return .rescueExpired }
         }
         switch phase {
@@ -183,4 +183,36 @@ enum ClimbCamera {
         let target = max(height / 2, anchorY + height * 0.15 + lead)
         return max(current, current + (target - current) * CGFloat(1 - exp(-JumpTuning.cameraFollowRate * dt)))
     }
+}
+
+// Small, additive rewards; zero-point trick platforms never grant bonuses.
+struct CatchRewards {
+    struct Award {
+        let points: Int
+        let perfect: Bool
+        let combo: Bool
+    }
+    private(set) var streak = 0
+    mutating func miss() { streak = 0 }
+    mutating func catchPlatform(basePoints: Int, perfect: Bool) -> Award {
+        guard basePoints > 0 else {
+            streak = 0
+            return Award(points: 0, perfect: false, combo: false)
+        }
+        streak += 1
+        let combo = streak % 5 == 0
+        return Award(points: basePoints + (perfect ? 1 : 0) + (combo ? 2 : 0),
+                     perfect: perfect, combo: combo)
+    }
+    static func isPerfect(contact: CGPoint, centerX: CGFloat, width: CGFloat,
+                          verticalSpeed: CGFloat) -> Bool {
+        verticalSpeed <= 0 && abs(contact.x - centerX) <= width * 0.15
+    }
+}
+
+struct ExperimentalTempo {
+    private(set) var activeSeconds: TimeInterval = 0
+    var multiplier: Double { 1 + Double(min(40, Int((activeSeconds + 0.000001) / 5))) * 0.05 }
+    mutating func advance(_ dt: TimeInterval) { activeSeconds = min(200, activeSeconds + max(0, dt)) }
+    mutating func reset() { activeSeconds = 0 }
 }

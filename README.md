@@ -10,10 +10,12 @@ An iPhone arcade prototype about two climbers connected by an elastic rope. Laun
 - The first manual pull starts a four-second deadline. It continues through release, flight and repeated misses; only a successful catch restores it. After an automatic jump misses, the same rescue deadline starts.
 - Tap anywhere after game over to restart. The best score is saved locally.
 - Pause with the pause button; Continue gives a three-second countdown. Returning from the background also requires Continue.
-- HEIGHT counts catches; SCORE awards one point per catch and two for moving platforms.
+- HEIGHT counts catches; SCORE awards one point per catch and two for moving platforms. Descending catches in the central 30% of a platform earn +1 PERFECT. Every fifth consecutive catch earns +2 COMBO. A miss or a trick platform breaks the streak; trick platforms always give zero points.
 - Use the speaker button to mute sound; the preference survives relaunches.
 
 The first three jumps are forgiving. Later platforms require sideways steering, and small gold platforms appear from the seventh jump, once every five jumps. Automatic launches provide height rather than horizontal aim. The route is visible ahead to fill the viewport. After height 100, occasional gold platforms move slowly sideways and award double points; precision platforms never move. Each moving 2× platform has an alternative 0-point trick platform at the same height. Both can be caught; choosing the trick continues the climb without awarding points.
+
+Experimental Turbo is available in the pause menu (Off by default). Every five active seconds it adds 5% to simulation speed, reaching 3× after 200 seconds. Pauses and resume countdown do not advance it. Restarting a run or toggling the mode resets the ramp. Rescue deadlines remain real-time.
 
 ## Run
 

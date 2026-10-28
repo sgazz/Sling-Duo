@@ -75,7 +75,11 @@ final class LedgeNode: SKShapeNode {
     // Intersect the full movement segment with the forgiving grab rectangle.
     // Endpoint-only checks can skip a platform on a fast descending jump.
     func canGrab(from start: CGPoint, to end: CGPoint, velocity: CGVector) -> Bool {
-        guard velocity.dy < 170 else { return false }
+        grabContact(from: start, to: end, velocity: velocity) != nil
+    }
+
+    func grabContact(from start: CGPoint, to end: CGPoint, velocity: CGVector) -> CGPoint? {
+        guard velocity.dy < 170 else { return nil }
         let halfWidth = size.width * 0.55
         let bounds = CGRect(x: position.x - halfWidth,
                             y: grabPoint.y - GameConstants.grabDistance,
@@ -88,16 +92,16 @@ final class LedgeNode: SKShapeNode {
             (start.y, movement.dy, bounds.minY, bounds.maxY)
         ] {
             if abs(delta) < 0.000001 {
-                guard origin >= lower && origin <= upper else { return false }
+                guard origin >= lower && origin <= upper else { return nil }
             } else {
                 let first = (lower - origin) / delta
                 let second = (upper - origin) / delta
                 entry = max(entry, min(first, second))
                 exit = min(exit, max(first, second))
-                if entry > exit { return false }
+                if entry > exit { return nil }
             }
         }
-        return true
+        return start + movement * entry
     }
 
     func setTarget(_ targeted: Bool) {
