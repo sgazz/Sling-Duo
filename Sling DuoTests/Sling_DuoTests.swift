@@ -1,9 +1,33 @@
 import SpriteKit
+import UIKit
 import Testing
 @testable import Sling_Duo
 
 @MainActor
 struct Sling_DuoTests {
+    @Test func heroPosesLoadWithoutMovingTheSimulationPoint() {
+        let scene = SKScene(size: CGSize(width: 390, height: 844))
+        for hero in ClimberNode.Hero.allCases {
+            let climber = ClimberNode(hero: hero)
+            scene.addChild(climber)
+            climber.position = CGPoint(x: 100, y: 200)
+            climber.setAnchored(true)
+            for expression: ClimberNode.Expression in [.calm, .strained, .flying, .happy, .dizzy] {
+                climber.updatePersonality(expression, lookingAt: .zero, deltaTime: 0)
+                let artwork = climber.childNode(withName: "heroArtwork") as! SKSpriteNode
+                #expect(artwork.texture != nil)
+                #expect(artwork.size.width > 30 && artwork.size.height > 30)
+                #expect(climber.position == CGPoint(x: 100, y: 200))
+                #expect(abs(climber.ropeAttachment.x - 100) < 1)
+                #expect(abs(climber.ropeAttachment.y - 200) < 20)
+            }
+            for state in ["Idle", "Anchored", "Pull", "Flight", "Catch", "Miss"] {
+                let color = hero == .cyan ? "Cyan" : "Orange"
+                #expect(UIImage(named: "Hero" + color + state) != nil)
+            }
+        }
+    }
+
     @Test func restartingRopeClearsPreviousFailure() {
         let rope = RubberRopeSystem()
         _ = rope.springForce(anchor: .zero, free: CGPoint(x: 0, y: -500), velocity: .zero,
@@ -319,5 +343,28 @@ struct Sling_DuoTests {
         #expect(normal.canGrab(climberPosition: offCenter, velocity: velocity))
         #expect(!small.canGrab(climberPosition: offCenter, velocity: velocity))
         #expect(small.canGrab(climberPosition: small.grabPoint, velocity: velocity))
+    }
+
+    @Test func stoneVariantsLoadAndPreserveThePlayableFootprint() {
+        for precision in [false, true] {
+            let size = CGSize(width: precision ? 64 : 126, height: 18)
+            let assets = precision ? PlatformArtwork.precision : PlatformArtwork.normal
+            for index in 0..<3 {
+                #expect(UIImage(named: assets[index].name) != nil)
+                let ledge = LedgeNode(center: CGPoint(x: 195, y: 300), size: size,
+                                      isPrecision: precision, artVariant: index)
+                let art = ledge.childNode(withName: "platformArtwork") as? SKSpriteNode
+                #expect(art != nil)
+                #expect((art?.size.width ?? 0) >= size.width)
+                #expect((art?.size.width ?? 1000) <= size.width * 1.03)
+                let grab = ledge.grabPoint
+                #expect(grab == CGPoint(x: 195, y: 323))
+                #expect(ledge.canGrab(climberPosition: grab, velocity: CGVector(dx: 0, dy: -100)))
+                #expect(!ledge.canGrab(climberPosition: grab + CGVector(dx: size.width * 0.65, dy: 0),
+                                      velocity: CGVector(dx: 0, dy: -100)))
+                ledge.setTarget(true)
+                #expect(ledge.grabPoint == grab)
+            }
+        }
     }
 }

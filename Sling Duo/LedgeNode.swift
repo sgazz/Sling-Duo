@@ -3,21 +3,28 @@ import SpriteKit
 final class LedgeNode: SKShapeNode {
     let size: CGSize
     let isPrecisionPlatform: Bool
+    private let targetRim = SKShapeNode()
 
-    init(center: CGPoint, size: CGSize = GameConstants.ledgeSize, isPrecision: Bool = false) {
+    init(center: CGPoint, size: CGSize = GameConstants.ledgeSize, isPrecision: Bool = false, artVariant: Int? = nil) {
         self.size = size
         self.isPrecisionPlatform = isPrecision
         super.init()
         position = center
-        path = LedgeNode.makePath(size: size)
-        fillColor = isPrecision
-            ? SKColor(red: 0.38, green: 0.29, blue: 0.23, alpha: 1)
-            : SKColor(red: 0.32, green: 0.38, blue: 0.58, alpha: 1)
-        strokeColor = isPrecision
-            ? SKColor(red: 1, green: 0.78, blue: 0.42, alpha: 1)
-            : SKColor(red: 0.64, green: 0.74, blue: 0.98, alpha: 1)
-        lineWidth = 2
         zPosition = 8
+        let variants = isPrecision ? PlatformArtwork.precision : PlatformArtwork.normal
+        let index = max(0, min(variants.count - 1, artVariant ?? Int.random(in: 0..<variants.count)))
+        let stone = variants[index].makeSprite(width: size.width)
+        stone.position.y = size.height / 2
+        addChild(stone)
+        let rim = CGMutablePath()
+        rim.move(to: CGPoint(x: -size.width * 0.43, y: size.height / 2 - 1))
+        rim.addLine(to: CGPoint(x: size.width * 0.43, y: size.height / 2 - 1))
+        targetRim.path = rim
+        targetRim.lineCap = .round
+        targetRim.lineWidth = 1.5
+        targetRim.zPosition = 1
+        addChild(targetRim)
+        setTarget(false)
     }
 
     required init?(coder aDecoder: NSCoder) {
@@ -62,7 +69,6 @@ final class LedgeNode: SKShapeNode {
     func setTarget(_ targeted: Bool) {
         removeAction(forKey: "targetPulse")
         childNode(withName: "targetMarker")?.removeFromParent()
-        glowWidth = targeted ? 3 : 0
         if isPrecisionPlatform {
             strokeColor = SKColor(red: 1, green: 0.78, blue: 0.42, alpha: 1)
         } else {
@@ -70,6 +76,9 @@ final class LedgeNode: SKShapeNode {
                 ? SKColor(red: 0.39, green: 0.96, blue: 0.8, alpha: 1)
                 : SKColor(red: 0.64, green: 0.74, blue: 0.98, alpha: 1)
         }
+        targetRim.strokeColor = strokeColor
+        targetRim.glowWidth = targeted ? 2 : 0
+        targetRim.alpha = targeted ? 0.9 : (isPrecisionPlatform ? 0.35 : 0)
         guard targeted else { return }
         let marker = SKShapeNode()
         let arrow = CGMutablePath()
@@ -89,17 +98,4 @@ final class LedgeNode: SKShapeNode {
         ])))
     }
 
-    private static func makePath(size: CGSize) -> CGPath {
-        let w = size.width / 2
-        let h = size.height / 2
-        let path = CGMutablePath()
-        path.move(to: CGPoint(x: -w, y: h - 3))
-        path.addLine(to: CGPoint(x: -w * 0.45, y: h + 3))
-        path.addLine(to: CGPoint(x: w * 0.2, y: h - 1))
-        path.addLine(to: CGPoint(x: w, y: h + 2))
-        path.addLine(to: CGPoint(x: w - 9, y: -h))
-        path.addLine(to: CGPoint(x: -w + 7, y: -h - 2))
-        path.closeSubpath()
-        return path
-    }
 }

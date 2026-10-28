@@ -5,13 +5,27 @@ final class RubberRopeSystem {
     private(set) var tension: CGFloat = 0
     private var overstretchTime: TimeInterval = 0
     private var pulseGlowBonus: CGFloat = 0
+    private var releaseProgress: CGFloat = 1
+    private let halo = SKShapeNode()
+    private let body = SKShapeNode()
+    private let core = SKShapeNode()
+    private let impulse = SKShapeNode()
 
     init() {
-        node.strokeColor = .cyan
-        node.lineCap = .round
-        node.lineWidth = 5
-        node.glowWidth = 6
+        node.strokeColor = .clear
         node.zPosition = 12
+        for (index, layer) in [halo, body, core, impulse].enumerated() {
+            layer.lineCap = .round
+            layer.lineJoin = .round
+            layer.fillColor = .clear
+            layer.zPosition = CGFloat(index)
+            node.addChild(layer)
+        }
+        halo.name = "ropeHalo"
+        body.name = "ropeBody"
+        core.name = "ropeCore"
+        impulse.name = "ropeImpulse"
+        impulse.isHidden = true
     }
 
     func charge(deltaTime: TimeInterval) {
@@ -23,6 +37,8 @@ final class RubberRopeSystem {
         overstretchTime = 0
         pulseGlowBonus = 0
         node.removeAllActions()
+        releaseProgress = 1
+        impulse.isHidden = true
     }
 
     func resetTension() {
@@ -48,6 +64,20 @@ final class RubberRopeSystem {
             }
         ])
         node.run(pulse, withKey: "ropePulse")
+    }
+
+    /// A visual pulse traveling from the anchored partner to the launched partner.
+    func launchPulse() {
+        releaseProgress = 0
+        node.run(.sequence([
+            .customAction(withDuration: 0.32) { [weak self] _, elapsed in
+                self?.releaseProgress = min(1, elapsed / 0.32)
+            },
+            .run { [weak self] in
+                self?.releaseProgress = 1
+                self?.impulse.isHidden = true
+            }
+        ]), withKey: "ropeRelease")
     }
 
     func springForce(anchor: CGPoint, free: CGPoint, velocity: CGVector, deltaTime: TimeInterval) -> CGVector {
@@ -89,42 +119,61 @@ final class RubberRopeSystem {
         overstretchTime > GameConstants.overstretchGrace
     }
 
+    func render(anchor: CGPoint, free: CGPoint) {
+        updateVisual(anchor: anchor, free: free, distance: (free - anchor).length)
+    }
+
     private func updateVisual(anchor: CGPoint, free: CGPoint, distance: CGFloat) {
-        let path = CGMutablePath()
-        let restLength = GameConstants.restLength
-        let maxStretchMultiplier = GameConstants.ropeMaxStretchMultiplier
-        let stretchRatio = min(maxStretchMultiplier, max(1.0, distance / restLength))
-        let normalizedStretch = min(1.0, max(0.0, (stretchRatio - 1.0) / (maxStretchMultiplier - 1.0)))
-
-        var currentThickness = lerp(
-            GameConstants.ropeThicknessAtRest,
-            GameConstants.ropeThicknessAtMaxStretch,
-            normalizedStretch
-        )
-        currentThickness = max(currentThickness, GameConstants.ropeMinVisibleThickness)
-
-        let relaxedGlow = currentThickness * 0.7 + 5
-        let stretchedGlow = currentThickness * 0.25 + normalizedStretch * 16 + tension * 6
-        var glowWidth = lerp(relaxedGlow, stretchedGlow, normalizedStretch) + pulseGlowBonus * 14
-
-        if normalizedStretch > 0.85 {
-            let wobble = sin(CACurrentMediaTime() * 30) * (normalizedStretch - 0.85) * 6
-            glowWidth += abs(wobble)
+        let stretch = min(1, max(0, (distance - GameConstants.restLength) /
+            (GameConstants.maxStretchLength - GameConstants.restLength)))
+        let energy = max(stretch, tension)
+        let thickness = max(GameConstants.ropeMinVisibleThickness,
+                            lerp(6, GameConstants.ropeThicknessAtMaxStretch, energy))
+        let slack = 1 - min(1, distance / GameConstants.maxDragDistance)
+        let sag = min(distance * 0.22, 25) * slack * (1 - tension)
+        let direction = (free - anchor).normalized()
+        let normal = CGVector(dx: -direction.dy, dy: direction.dx)
+        let shiver = sin(CACurrentMediaTime() * 32) * max(0, energy - 0.85) * 4
+        let recoil = releaseProgress < 1
+            ? sin(releaseProgress * .pi * 4) * (1 - releaseProgress) * 7 : 0
+        let control = CGPoint(x: (anchor.x + free.x) / 2,
+                              y: (anchor.y + free.y) / 2 - sag) + normal * (shiver + recoil)
+        func point(_ t: CGFloat) -> CGPoint {
+            let u = 1 - t
+            return CGPoint(x: u * u * anchor.x + 2 * u * t * control.x + t * t * free.x,
+                           y: u * u * anchor.y + 2 * u * t * control.y + t * t * free.y)
         }
-
-        let sag = 18 + normalizedStretch * 42 - tension * 18
-        let mid = CGPoint(x: (anchor.x + free.x) / 2, y: (anchor.y + free.y) / 2 - sag)
+        let path = CGMutablePath()
         path.move(to: anchor)
-        path.addQuadCurve(to: free, control: mid)
-        node.path = path
-        node.lineWidth = currentThickness
-        node.glowWidth = glowWidth
-        node.strokeColor = SKColor(
-            red: 0.25 + normalizedStretch * 0.55 + tension * 0.35 + pulseGlowBonus * 0.2,
-            green: 0.88 + normalizedStretch * 0.07,
-            blue: 1,
-            alpha: min(1, lerp(0.72, 0.95, normalizedStretch) + pulseGlowBonus * 0.08)
-        )
+        path.addQuadCurve(to: free, control: control)
+        // Dark teal edging keeps the elastic readable over bright cave artwork.
+        body.path = path
+        body.lineWidth = thickness + 2
+        body.strokeColor = SKColor(red: 0.06, green: 0.32, blue: 0.38, alpha: 0.95)
+        core.path = path
+        core.lineWidth = thickness
+        core.strokeColor = SKColor(red: lerp(0.35, 1, energy),
+                                   green: lerp(0.92, 0.78, energy),
+                                   blue: lerp(0.94, 0.28, energy), alpha: 1)
+        halo.path = path
+        halo.lineWidth = thickness + 1
+        halo.strokeColor = core.strokeColor.withAlphaComponent(0.16 + energy * 0.18)
+        halo.glowWidth = 1 + energy * 3 + pulseGlowBonus * 4
+        impulse.isHidden = releaseProgress >= 1
+        if !impulse.isHidden {
+            let flash = CGMutablePath()
+            let start = max(0, releaseProgress - 0.16)
+            let end = min(1, releaseProgress + 0.08)
+            flash.move(to: point(start))
+            for index in 1...8 {
+                flash.addLine(to: point(lerp(start, end, CGFloat(index) / 8)))
+            }
+            impulse.path = flash
+            impulse.lineWidth = thickness + 0.8
+            impulse.strokeColor = SKColor(red: 1, green: 0.97, blue: 0.72,
+                                          alpha: 1 - releaseProgress * 0.65)
+            impulse.glowWidth = 3
+        }
     }
 
     private func lerp(_ from: CGFloat, _ to: CGFloat, _ t: CGFloat) -> CGFloat {

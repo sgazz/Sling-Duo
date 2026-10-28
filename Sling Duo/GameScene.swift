@@ -3,8 +3,8 @@ import SpriteKit
 import UIKit
 
 final class GameScene: SKScene {
-    private let mint = ClimberNode(color: SKColor(red: 0.22, green: 0.91, blue: 0.76, alpha: 1))
-    private let coral = ClimberNode(color: SKColor(red: 1, green: 0.43, blue: 0.39, alpha: 1))
+    private let mint = ClimberNode(hero: .cyan)
+    private let coral = ClimberNode(hero: .orange)
     private let sound = GameAudio()
     var soundEnabled: Bool {
         get { sound.enabled }
@@ -27,7 +27,7 @@ final class GameScene: SKScene {
     private let retryBest = SKLabelNode(fontNamed: "AvenirNext-DemiBold")
     private let launchHaptic = UIImpactFeedbackGenerator(style: .soft)
     private var trailClock: TimeInterval = 0
-    private let backdrop = SKNode()
+    private let backdrop = CaveBackdrop()
     private let aim = SKNode()
     private let predictionRope = RubberRopeSystem()
     private var touchOrigin = CGPoint.zero
@@ -127,7 +127,10 @@ final class GameScene: SKScene {
         isPaused = !active
         previousTime = 0
         if active {
-            if view != nil { startMotion() }
+            if view != nil {
+                sound.prepare()
+                startMotion()
+            }
         } else {
             sound.suspend()
             motion.stopDeviceMotionUpdates()
@@ -268,12 +271,13 @@ final class GameScene: SKScene {
         happyTime = max(0, happyTime - elapsed)
         anchor.updatePersonality(happyTime > 0 ? .happy : .calm,
                                  lookingAt: jumper.position, deltaTime: elapsed)
-        let jumperExpression: ClimberNode.Expression = drag != nil && rope.tension > 0.7
-            ? .strained : (flight ? .flying : .calm)
+        let jumperExpression: ClimberNode.Expression = drag != nil
+            ? .strained : (flow.phase == .rescue ? .dizzy : (flight ? .flying : .calm))
         jumper.updatePersonality(jumperExpression, lookingAt: nextLedge.grabPoint, deltaTime: elapsed)
+        rope.render(anchor: anchor.ropeAttachment, free: jumper.ropeAttachment)
         updateAim()
         updateTrail(elapsed)
-        backdrop.position.y = -(gameCamera.position.y - size.height / 2) * 0.06
+        backdrop.update(travel: gameCamera.position.y - size.height / 2)
         for ledge in children.compactMap({ $0 as? LedgeNode }) where ledge !== current && ledge !== nextLedge && ledge.position.y < gameCamera.position.y - size.height / 2 - 80 {
             ledge.removeFromParent()
         }
@@ -298,6 +302,7 @@ final class GameScene: SKScene {
             if flow.advance(dt, y: jumper.position.y, verticalSpeed: 0, targetY: nextLedge.grabPoint.y) == .launchPartner {
                 velocity = PartnerLaunch.velocity(from: jumper.position, anchor: anchor.position, target: nextLedge.grabPoint)
                 rope.reset()
+                rope.launchPulse()
                 trailClock = 0
                 hint.text = "TILT TO STEER"
                 hint.fontColor = .white.withAlphaComponent(0.7)
@@ -372,6 +377,7 @@ final class GameScene: SKScene {
         flow.launch()
         hint.fontColor = .white.withAlphaComponent(0.7)
         rope.reset()
+        rope.launchPulse()
         hint.text = "TILT TO STEER"
     }
     override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
@@ -472,30 +478,7 @@ final class GameScene: SKScene {
     }
 
     private func buildBackdrop() {
-        backdrop.removeAllChildren()
-        // Broad distant shapes leave a quiet central lane for the playable objects.
-        for side: CGFloat in [-1, 1] {
-            let path = CGMutablePath()
-            let x = side * size.width / 2
-            path.move(to: CGPoint(x: x, y: -size.height))
-            path.addLine(to: CGPoint(x: x - side * 35, y: -size.height * 0.25))
-            path.addLine(to: CGPoint(x: x - side * 16, y: size.height * 0.05))
-            path.addLine(to: CGPoint(x: x - side * 50, y: size.height * 0.35))
-            path.addLine(to: CGPoint(x: x, y: size.height))
-            path.closeSubpath()
-            let cliff = SKShapeNode(path: path)
-            cliff.fillColor = SKColor(red: 0.1, green: 0.14, blue: 0.25, alpha: 1)
-            cliff.strokeColor = .clear
-            backdrop.addChild(cliff)
-        }
-        for index in 0..<32 {
-            let dot = SKShapeNode(circleOfRadius: index % 5 == 0 ? 1.8 : 1)
-            dot.position = CGPoint(x: CGFloat((index * 137) % 997) / 997 * size.width - size.width / 2,
-                                   y: CGFloat((index * 251) % 991) / 991 * size.height * 2 - size.height)
-            dot.fillColor = .white.withAlphaComponent(index % 5 == 0 ? 0.16 : 0.06)
-            dot.strokeColor = .clear
-            backdrop.addChild(dot)
-        }
+        backdrop.configure(size: size)
     }
 
     private func updateTrail(_ elapsed: TimeInterval) {

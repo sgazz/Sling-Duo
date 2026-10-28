@@ -1,105 +1,117 @@
 import SpriteKit
 
 final class ClimberNode: SKShapeNode {
+    enum Hero: CaseIterable { case cyan, orange }
+    enum Pose: CaseIterable { case idle, anchored, pull, flight, catchPose, miss }
     enum Expression { case calm, strained, flying, happy, dizzy }
+    private struct Frame {
+        let name: String
+        let pixels: CGSize
+        let crop: CGRect
+        let beltY: CGFloat
+    }
+    private let hero: Hero
+    private let artwork = SKSpriteNode()
+    private var anchored = false
+    private(set) var pose: Pose = .idle
+    private var visualTime: TimeInterval = 0
+    private var beltPoint = CGPoint.zero
+    private static var textures: [String: SKTexture] = [:]
 
-    private let eyes = SKNode()
-    private let mouth = SKShapeNode()
-    private var pupils: [SKShapeNode] = []
-    private var brows: [SKShapeNode] = []
-    private var expression: Expression?
-    private var blinkCountdown: TimeInterval = 3
+    // This point follows the artwork's belt, including lean and landing squash.
+    var ropeAttachment: CGPoint {
+        guard let parent else { return position }
+        return artwork.convert(beltPoint, to: parent)
+    }
 
-    init(color: SKColor) {
+    init(hero: Hero) {
+        self.hero = hero
         super.init()
-        path = CGPath(roundedRect: CGRect(x: -16, y: -18, width: 32, height: 36), cornerWidth: 13, cornerHeight: 13, transform: nil)
-        fillColor = color
-        strokeColor = .white.withAlphaComponent(0.8)
-        lineWidth = 2.5
+        fillColor = hero == .cyan ? SKColor(red: 0.12, green: 0.82, blue: 0.86, alpha: 1)
+            : SKColor(red: 1, green: 0.43, blue: 0.12, alpha: 1)
+        strokeColor = .clear
         zPosition = 20
-        addChild(eyes)
-        for x: CGFloat in [-6, 6] {
-            let eye = SKShapeNode(ellipseOf: CGSize(width: 8, height: 10))
-            eye.position = CGPoint(x: x, y: 4)
-            eye.fillColor = .white
-            eye.strokeColor = .clear
-            let pupil = SKShapeNode(circleOfRadius: 2)
-            pupil.fillColor = SKColor(white: 0.08, alpha: 1)
-            pupil.strokeColor = .clear
-            eye.addChild(pupil)
-            pupils.append(pupil)
-            eyes.addChild(eye)
-            let brow = SKShapeNode(rectOf: CGSize(width: 7, height: 1.8), cornerRadius: 0.8)
-            brow.fillColor = SKColor(white: 0.08, alpha: 0.8)
-            brow.strokeColor = .clear
-            brow.position = CGPoint(x: x, y: 12)
-            addChild(brow)
-            brows.append(brow)
-        }
-        mouth.strokeColor = SKColor(white: 0.08, alpha: 1)
-        mouth.lineWidth = 2
-        mouth.lineCap = .round
-        addChild(mouth)
-        resetPersonality()
+        artwork.name = "heroArtwork"
+        artwork.anchorPoint = CGPoint(x: 0.5, y: 0)
+        addChild(artwork)
+        show(.idle)
     }
 
     required init?(coder: NSCoder) { fatalError("Not supported") }
 
-    func setAnchored(_ anchored: Bool) {
+    func setAnchored(_ value: Bool) {
+        anchored = value
         removeAction(forKey: "landingSquash")
         zRotation = 0
-        setScale(anchored ? 0.95 : 1)
+        setScale(value ? 0.95 : 1)
+        show(value ? .anchored : .idle)
     }
 
     func setFlightLean(_ tilt: CGFloat) { zRotation = tilt * 0.16 }
 
     func resetPersonality() {
-        eyes.removeAllActions()
-        eyes.yScale = 1
-        blinkCountdown = Double.random(in: 2.5...5)
-        expression = nil
-        updatePersonality(.calm, lookingAt: position, deltaTime: 0)
+        visualTime = 0
+        artwork.removeAllActions()
+        artwork.setScale(1)
+        show(.idle)
     }
 
-    func updatePersonality(_ next: Expression, lookingAt target: CGPoint, deltaTime: TimeInterval) {
-        // Convert the world-space target into this rotated/scaled character's space.
-        let localTarget = parent.map { convert(target, from: $0) } ?? .zero
-        let direction = (localTarget - CGPoint.zero).normalized()
-        for pupil in pupils {
-            pupil.position = CGPoint(x: direction.dx * 1.7, y: direction.dy * 1.5)
+    func updatePersonality(_ expression: Expression, lookingAt target: CGPoint, deltaTime: TimeInterval) {
+        visualTime += deltaTime
+        let next: Pose
+        switch expression {
+        case .calm: next = anchored ? .anchored : .idle
+        case .strained: next = .pull
+        case .flying: next = .flight
+        case .happy: next = .catchPose
+        case .dizzy: next = .miss
         }
-        blinkCountdown -= deltaTime
-        if blinkCountdown <= 0 && next != .dizzy {
-            blinkCountdown = Double.random(in: 2.5...5)
-            eyes.run(.sequence([
-                .scaleY(to: 0.08, duration: 0.06),
-                .scaleY(to: 1, duration: 0.09)
-            ]), withKey: "blink")
+        if pose != next { show(next) }
+        // Animate only the artwork; the simulation point and grab region stay fixed.
+        let breath = next == .idle || next == .anchored ? sin(visualTime * 3) * 0.012 : 0
+        artwork.yScale = 1 + breath
+        artwork.xScale = 1 - breath * 0.4
+    }
+
+    private func show(_ next: Pose) {
+        pose = next
+        let frame = Self.frame(hero, next)
+        let texture: SKTexture
+        if let cached = Self.textures[frame.name] { texture = cached }
+        else {
+            let full = SKTexture(imageNamed: frame.name)
+            let uv = CGRect(x: frame.crop.minX / frame.pixels.width,
+                            y: 1 - frame.crop.maxY / frame.pixels.height,
+                            width: frame.crop.width / frame.pixels.width,
+                            height: frame.crop.height / frame.pixels.height)
+            texture = SKTexture(rect: uv, in: full)
+            texture.filteringMode = .linear
+            Self.textures[frame.name] = texture
         }
-        guard expression != next else { return }
-        expression = next
-        let curve = CGMutablePath()
-        mouth.fillColor = .clear
-        for brow in brows { brow.isHidden = next == .calm || next == .happy }
-        switch next {
-        case .calm, .happy:
-            let width: CGFloat = next == .happy ? 6 : 4
-            curve.move(to: CGPoint(x: -width, y: -6))
-            curve.addQuadCurve(to: CGPoint(x: width, y: -6), control: CGPoint(x: 0, y: next == .happy ? -15 : -11))
-        case .strained:
-            curve.move(to: CGPoint(x: -4, y: -8))
-            curve.addLine(to: CGPoint(x: 4, y: -8))
-        case .flying:
-            curve.addEllipse(in: CGRect(x: -3, y: -12, width: 6, height: 8))
-            mouth.fillColor = SKColor(white: 0.08, alpha: 1)
-        case .dizzy:
-            curve.move(to: CGPoint(x: -5, y: -9))
-            curve.addQuadCurve(to: CGPoint(x: 5, y: -9), control: CGPoint(x: 0, y: -3))
+        // A single pixel scale per hero preserves body size across all poses.
+        let scale: CGFloat = hero == .cyan ? 48 / 995 : 46 / 1028
+        artwork.texture = texture
+        artwork.size = CGSize(width: frame.crop.width * scale, height: frame.crop.height * scale)
+        beltPoint = CGPoint(x: (frame.pixels.width / 2 - frame.crop.midX) * scale,
+                            y: (frame.crop.maxY - frame.beltY) * scale)
+        let grounded = next == .idle || next == .anchored || next == .catchPose
+        artwork.position = CGPoint(x: -beltPoint.x, y: grounded ? -18 : -3 - beltPoint.y)
+    }
+
+    private static func frame(_ hero: Hero, _ pose: Pose) -> Frame {
+        switch (hero, pose) {
+        case (.cyan, .idle): return Frame(name: "HeroCyanIdle", pixels: CGSize(width: 1282, height: 1227), crop: CGRect(x: 88, y: 135, width: 1101, height: 1003), beltY: 790)
+        case (.cyan, .anchored): return Frame(name: "HeroCyanAnchored", pixels: CGSize(width: 1282, height: 1227), crop: CGRect(x: 139, y: 134, width: 1006, height: 1002), beltY: 850)
+        case (.cyan, .pull): return Frame(name: "HeroCyanPull", pixels: CGSize(width: 1282, height: 1227), crop: CGRect(x: 79, y: 102, width: 1129, height: 1049), beltY: 750)
+        case (.cyan, .flight): return Frame(name: "HeroCyanFlight", pixels: CGSize(width: 1282, height: 1227), crop: CGRect(x: 68, y: 125, width: 1155, height: 1016), beltY: 790)
+        case (.cyan, .catchPose): return Frame(name: "HeroCyanCatch", pixels: CGSize(width: 1282, height: 1227), crop: CGRect(x: 40, y: 182, width: 1213, height: 953), beltY: 730)
+        case (.cyan, .miss): return Frame(name: "HeroCyanMiss", pixels: CGSize(width: 1282, height: 1227), crop: CGRect(x: 94, y: 162, width: 1152, height: 929), beltY: 790)
+        case (.orange, .idle): return Frame(name: "HeroOrangeIdle", pixels: CGSize(width: 1311, height: 1200), crop: CGRect(x: 74, y: 77, width: 1163, height: 1036), beltY: 780)
+        case (.orange, .anchored): return Frame(name: "HeroOrangeAnchored", pixels: CGSize(width: 1312, height: 1199), crop: CGRect(x: 85, y: 71, width: 1148, height: 1047), beltY: 790)
+        case (.orange, .pull): return Frame(name: "HeroOrangePull", pixels: CGSize(width: 1311, height: 1200), crop: CGRect(x: 57, y: 73, width: 1200, height: 1017), beltY: 760)
+        case (.orange, .flight): return Frame(name: "HeroOrangeFlight", pixels: CGSize(width: 1311, height: 1200), crop: CGRect(x: 62, y: 73, width: 1209, height: 1044), beltY: 780)
+        case (.orange, .catchPose): return Frame(name: "HeroOrangeCatch", pixels: CGSize(width: 1311, height: 1200), crop: CGRect(x: 20, y: 96, width: 1279, height: 995), beltY: 750)
+        case (.orange, .miss): return Frame(name: "HeroOrangeMiss", pixels: CGSize(width: 1311, height: 1200), crop: CGRect(x: 68, y: 86, width: 1202, height: 1037), beltY: 770)
         }
-        for (index, brow) in brows.enumerated() {
-            brow.zRotation = (index == 0 ? 1 : -1) * (next == .strained ? -0.35 : 0.25)
-            brow.position.y = next == .flying ? 14 : 12
-        }
-        mouth.path = curve
     }
 }
