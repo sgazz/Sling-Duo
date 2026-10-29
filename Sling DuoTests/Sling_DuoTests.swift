@@ -163,6 +163,49 @@ struct Sling_DuoTests {
         #expect(expired == .rescueExpired)
     }
 
+    @Test func escapeCompletesOnceAndEndlessPreservesRunStatistics() {
+        var progress = EscapeProgress()
+        progress.advance(120)
+        let before = progress.catchPlatform(height: 149, streak: 12)
+        #expect(!before)
+        progress.advance(1)
+        let victory = progress.catchPlatform(height: 150, streak: 13)
+        #expect(victory && progress.awaitingChoice)
+        #expect(progress.longestCombo == 13)
+        progress.advance(60)
+        #expect(progress.seconds == 121)
+        progress.keepClimbing()
+        #expect(progress.endless && !progress.awaitingChoice)
+        progress.advance(1)
+        let again = progress.catchPlatform(height: 151, streak: 14)
+        #expect(!again && progress.seconds == 122)
+        #expect(progress.longestCombo == 14)
+        #expect(EscapeProgress.timeText(122) == "2:02")
+        progress = EscapeProgress()
+        #expect(!progress.completed && progress.seconds == 0 && progress.longestCombo == 0)
+    }
+
+    @Test func turboRecordsStaySeparateEvenIfDisabledMidRun() {
+        var progress = EscapeProgress()
+        let normal = progress.recordPrefix
+        progress.markTurbo()
+        #expect(progress.recordPrefix != normal)
+        #expect(progress.usedTurbo)
+        progress.keepClimbing()
+        #expect(progress.usedTurbo)
+        #expect(EscapeProgress(turbo: true).recordPrefix == progress.recordPrefix)
+        #expect(EscapeProgress().recordPrefix == normal)
+    }
+
+    @Test func exitAppearsOnlyAtEscapeGoal() {
+        let spawner = LedgeSpawner(sceneWidth: 390)
+        let base = spawner.startingLedge(y: 100)
+        for height in [148, 149, 150] {
+            let next = spawner.nextLedge(above: base, score: height)
+            #expect((next.childNode(withName: "escapeExit") != nil) == (height == 149))
+        }
+    }
+
     @Test func holdingRescueAimStillConsumesTheDeadline() {
         var flow = JumpFlow()
         flow.launch()

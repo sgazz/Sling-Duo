@@ -216,3 +216,54 @@ struct ExperimentalTempo {
     mutating func advance(_ dt: TimeInterval) { activeSeconds = min(200, activeSeconds + max(0, dt)) }
     mutating func reset() { activeSeconds = 0 }
 }
+
+struct EscapeProgress {
+    static let goal = 150
+    private(set) var seconds: TimeInterval = 0
+    private(set) var longestCombo = 0
+    private(set) var completed = false
+    private(set) var awaitingChoice = false
+    private(set) var endless = false
+    private(set) var usedTurbo: Bool
+    init(turbo: Bool = false) { usedTurbo = turbo }
+    mutating func markTurbo() { usedTurbo = true }
+    mutating func advance(_ dt: TimeInterval) {
+        guard !awaitingChoice else { return }
+        seconds += max(0, dt)
+    }
+    mutating func catchPlatform(height: Int, streak: Int) -> Bool {
+        longestCombo = max(longestCombo, streak)
+        guard height >= Self.goal, !completed else { return false }
+        completed = true
+        awaitingChoice = true
+        return true
+    }
+    mutating func keepClimbing() {
+        guard awaitingChoice else { return }
+        awaitingChoice = false
+        endless = true
+    }
+    var recordPrefix: String {
+        #if DEBUG
+        if ProcessInfo.processInfo.environment["SLINGDUO_ESCAPE_UI_TEST"] == "1" {
+            return "SlingDuo.testRecords." + (usedTurbo ? "turbo" : "normal")
+        }
+        #endif
+        return "SlingDuo.records." + (usedTurbo ? "turbo" : "normal")
+    }
+    var stage: String {
+        if endless { return "ENDLESS" }
+        return "ESCAPE"
+    }
+    static func timeText(_ seconds: TimeInterval) -> String {
+        let total = max(0, Int(seconds))
+        return String(format: "%d:%02d", total / 60, total % 60)
+    }
+}
+
+struct EscapeSummary {
+    let points: Int
+    let seconds: TimeInterval
+    let longestCombo: Int
+    let turbo: Bool
+}

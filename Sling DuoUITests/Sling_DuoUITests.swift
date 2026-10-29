@@ -80,6 +80,38 @@ final class Sling_DuoUITests: XCTestCase {
     }
 
     @MainActor
+    func testEscapeOffersEndlessContinuationAndFreshRestart() {
+        let app = XCUIApplication()
+        app.launchEnvironment["SLINGDUO_ESCAPE_UI_TEST"] = "1"
+        app.launch()
+        let keep = app.buttons["keepClimbing"]
+        XCTAssertTrue(keep.waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["YOU ESCAPED!"].exists)
+        let victory = XCTAttachment(screenshot: app.screenshot())
+        victory.name = "Escape victory"
+        victory.lifetime = .keepAlways
+        add(victory)
+        keep.tap()
+        XCTAssertTrue(app.staticTexts["resumeCountdown"].waitForExistence(timeout: 2))
+        let gone = NSPredicate(format: "exists == false")
+        expectation(for: gone, evaluatedWith: app.staticTexts["resumeCountdown"])
+        waitForExpectations(timeout: 5)
+        XCTAssertFalse(keep.exists)
+        app.buttons["pauseGame"].tap()
+        XCTAssertTrue(app.buttons["continueGame"].waitForExistence(timeout: 3))
+        app.terminate()
+        app.launch()
+        let again = app.buttons["playAgain"]
+        XCTAssertTrue(again.waitForExistence(timeout: 10))
+        again.tap()
+        XCTAssertTrue(app.staticTexts["resumeCountdown"].waitForExistence(timeout: 2))
+        expectation(for: gone, evaluatedWith: app.staticTexts["resumeCountdown"])
+        waitForExpectations(timeout: 5)
+        XCTAssertFalse(again.exists)
+        XCTAssertTrue(app.buttons["pauseGame"].exists)
+    }
+
+    @MainActor
     func testSoundPreferenceSurvivesRelaunch() {
         let app = XCUIApplication()
         app.launch()

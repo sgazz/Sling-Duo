@@ -83,6 +83,7 @@ final class LedgeSpawner {
         let result = LedgeNode(center: CGPoint(x: x, y: ledge.position.y + gap),
                          size: CGSize(width: width, height: GameConstants.ledgeSize.height),
                          isPrecision: precisionJump)
+        if score == EscapeProgress.goal - 1 { result.markExit() }
         // Every eighth destination after height 100; never combine with precision.
         if score >= 100 && score % 8 == 4 && !precisionJump {
             result.trickAlternative = trickPlatform(opposite: result, above: ledge)

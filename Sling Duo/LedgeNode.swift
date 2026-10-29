@@ -47,6 +47,28 @@ final class LedgeNode: SKShapeNode {
         fatalError("init(coder:) has not been implemented")
     }
 
+    func markExit() {
+        let arch = SKShapeNode()
+        let path = CGMutablePath()
+        path.move(to: CGPoint(x: -26, y: 10))
+        path.addLine(to: CGPoint(x: -26, y: 57))
+        path.addArc(center: CGPoint(x: 0, y: 57), radius: 26, startAngle: .pi, endAngle: 0, clockwise: true)
+        path.addLine(to: CGPoint(x: 26, y: 10))
+        arch.path = path
+        arch.name = "escapeExit"
+        arch.strokeColor = .systemYellow
+        arch.lineWidth = 5
+        arch.glowWidth = 5
+        arch.zPosition = -1
+        addChild(arch)
+        let label = SKLabelNode(fontNamed: "AvenirNext-Heavy")
+        label.text = "EXIT"
+        label.fontSize = 14
+        label.position.y = 96
+        label.fontColor = .systemYellow
+        addChild(label)
+    }
+
     func configureMotion() {
         isMovingPlatform = true
         motionCenter = position.x

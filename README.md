@@ -2,6 +2,12 @@
 
 An iPhone arcade prototype about two climbers connected by an elastic rope. Launch once, steer with tilt, and keep the pair climbing in rhythm.
 
+## Escape and Endless
+
+Each run begins as Escape: reach platform 150 to exit the cave. The three chapters are The Depths (0–49), The Climb (50–99), and Daylight Ahead (100–150). At the exit the duo celebrates and the result shows score, active real time, and longest combo. Play Again starts a fresh Escape; Keep Climbing continues the same run as Endless after the resume countdown. Pauses, countdowns and the victory screen do not add to the run timer.
+
+Height, score, combo and fastest Escape records are stored separately for normal and Turbo runs. Once Turbo is used, the remainder of that run stays in the Turbo record category even if the switch is disabled.
+
 ## Play
 
 - Drag and release to make the first sling. Your comfortable phone angle at release becomes the neutral tilt position.

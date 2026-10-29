@@ -2,7 +2,7 @@ import SpriteKit
 import SwiftUI
 
 struct ContentView: View {
-    @State private var scene = GameScene(size: GameConstants.sceneSize)
+    @StateObject private var scene = GameScene(size: GameConstants.sceneSize)
     @Environment(\.scenePhase) private var phase
     @AppStorage("SlingDuo.soundEnabled") private var soundEnabled = true
     @AppStorage("SlingDuo.steeringMode") private var steeringMode = "tilt"
@@ -28,6 +28,39 @@ struct ContentView: View {
             .buttonStyle(.plain)
             .padding(.trailing, 18)
             .padding(.top, 8)
+            if let summary = scene.escapeSummary {
+                ZStack {
+                    Color.black.opacity(0.65).ignoresSafeArea()
+                    VStack(spacing: 18) {
+                        Image(systemName: "sun.max.fill").font(.system(size: 48)).foregroundStyle(.yellow)
+                        Text("YOU ESCAPED!").font(.title.bold())
+                        Text(summary.turbo ? "TURBO ESCAPE • 150 / 150" : "ESCAPE • 150 / 150")
+                            .font(.caption.bold())
+                        Text("SCORE \(summary.points)").font(.title2.bold())
+                        Text("TIME \(EscapeProgress.timeText(summary.seconds))")
+                        Text("LONGEST COMBO \(summary.longestCombo)")
+                        Button("Keep Climbing") {
+                            scene.setGameplayPaused(true)
+                            scene.continueEndless()
+                            paused = true
+                            resume()
+                        }.accessibilityIdentifier("keepClimbing")
+                        .buttonStyle(.borderedProminent)
+                        .tint(.teal)
+                        Button("Play Again") {
+                            scene.setGameplayPaused(true)
+                            scene.restartFromMenu()
+                            paused = true
+                            resume()
+                        }.accessibilityIdentifier("playAgain")
+                        .buttonStyle(.bordered)
+                    }
+                    .foregroundStyle(.white)
+                    .padding(30)
+                    .background(Color(red: 0.06, green: 0.09, blue: 0.16).opacity(0.98), in: RoundedRectangle(cornerRadius: 24))
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
             if paused {
                 ZStack {
                     Color.black.opacity(0.65).ignoresSafeArea()
