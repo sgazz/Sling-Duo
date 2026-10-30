@@ -5,6 +5,9 @@ import Combine
 
 final class GameScene: SKScene, ObservableObject {
     @Published private(set) var escapeSummary: EscapeSummary?
+    @Published private(set) var hud = GameHUDState()
+    @Published private(set) var runSummary: RunSummary?
+    private var hudClock: TimeInterval = 0
     private var progress = EscapeProgress()
 
     private let mint = ClimberNode(hero: .cyan)
@@ -21,29 +24,16 @@ final class GameScene: SKScene, ObservableObject {
             steeringTouch = nil
             if steeringMode == .slide { motion.stopDeviceMotionUpdates() }
             else if !userPaused && appActive && view != nil { startMotion() }
-            if ready && !ended { hint.text = flight ? steeringHint : startHint }
+            if ready && !ended { publishHUD() }
         }
     }
-    private var steeringHint: String { steeringMode == .tilt ? "TILT TO STEER" : "SLIDE LEFT / RIGHT TO STEER" }
-    private var startHint: String { steeringMode == .tilt ? "SLING TO START • THEN TILT" : "SLING TO START • THEN SLIDE" }
     private var slide = SlideSteering()
     private var steeringTouch: UITouch?
     private var steeringOrigin: CGFloat = 0
     private let rope = RubberRopeSystem()
     private let gameCamera = SKCameraNode()
-    private let scoreLabel = SKLabelNode(fontNamed: "AvenirNext-Heavy")
-    private let hint = SKLabelNode(fontNamed: "AvenirNext-DemiBold")
-    private let title = SKLabelNode(fontNamed: "AvenirNext-Heavy")
-    private let rescueTrack = SKShapeNode(rectOf: CGSize(width: 100, height: 5), cornerRadius: 2.5)
-    private let rescueFill = SKShapeNode(rectOf: CGSize(width: 100, height: 5), cornerRadius: 2.5)
-    private let recordToast = SKLabelNode(fontNamed: "AvenirNext-Heavy")
     private var celebratedRecord = false
     private var happyTime: TimeInterval = 0
-    private let bestLabel = SKLabelNode(fontNamed: "AvenirNext-DemiBold")
-    private let retryCard = SKNode()
-    private let retryTitle = SKLabelNode(fontNamed: "AvenirNext-Heavy")
-    private let retryScore = SKLabelNode(fontNamed: "AvenirNext-Heavy")
-    private let retryBest = SKLabelNode(fontNamed: "AvenirNext-DemiBold")
     private let launchHaptic = UIImpactFeedbackGenerator(style: .soft)
     private var trailClock: TimeInterval = 0
     private let backdrop = CaveBackdrop()
@@ -70,17 +60,14 @@ final class GameScene: SKScene, ObservableObject {
             if turboEnabled {
                 progress.markTurbo()
                 best = UserDefaults.standard.integer(forKey: progress.recordPrefix + ".height")
-                if ready { bestLabel.text = "TURBO BEST \(best)" }
             }
             tempo.reset()
             accumulator = 0
-            updateTempoHUD()
+            if ready { publishHUD() }
         }
     }
     private var tempo = ExperimentalTempo()
-    private let tempoLabel = SKLabelNode(fontNamed: "AvenirNext-Bold")
     private var points = 0
-    private let pointsLabel = SKLabelNode(fontNamed: "AvenirNext-DemiBold")
     private var rescueWarningPlayed = false
     private var userPaused = false
     private var appActive = true
@@ -98,17 +85,9 @@ final class GameScene: SKScene, ObservableObject {
 
 
     override func didMove(to view: SKView) {
-        if UIApplication.shared.applicationState == .active { startMotion() }
+        if UIApplication.shared.applicationState == .active && !userPaused { startMotion() }
         guard !ready else { return }
         ready = true
-        tempoLabel.fontSize = 12
-        tempoLabel.fontColor = .systemYellow
-        tempoLabel.zPosition = 100
-        gameCamera.addChild(tempoLabel)
-        updateTempoHUD()
-        pointsLabel.fontSize = 12
-        pointsLabel.zPosition = 100
-        gameCamera.addChild(pointsLabel)
         sound.prepare()
         scaleMode = .resizeFill
         backgroundColor = SKColor(red: 0.055, green: 0.075, blue: 0.16, alpha: 1)
@@ -127,45 +106,45 @@ final class GameScene: SKScene, ObservableObject {
             aim.addChild(dot)
         }
         aim.isHidden = true
-        for label in [title, scoreLabel, hint] {
-            label.zPosition = 100
-            gameCamera.addChild(label)
-        }
-        bestLabel.fontSize = 11
-        bestLabel.fontColor = .white.withAlphaComponent(0.45)
-        bestLabel.zPosition = 100
-        gameCamera.addChild(bestLabel)
-        recordToast.fontSize = 14
-        recordToast.fontColor = SKColor(red: 1, green: 0.81, blue: 0.36, alpha: 1)
-        recordToast.text = "NEW BEST!"
-        recordToast.alpha = 0
-        recordToast.zPosition = 100
-        gameCamera.addChild(recordToast)
-        rescueTrack.fillColor = .white.withAlphaComponent(0.12)
-        rescueTrack.strokeColor = .clear
-        rescueFill.fillColor = SKColor(red: 1, green: 0.76, blue: 0.4, alpha: 1)
-        rescueFill.strokeColor = .clear
-        rescueTrack.zPosition = 100
-        rescueFill.zPosition = 101
-        rescueTrack.isHidden = true
-        rescueFill.isHidden = true
-        gameCamera.addChild(rescueTrack)
-        gameCamera.addChild(rescueFill)
-        setupRetryCard()
-        title.fontSize = 19
-        title.fontColor = SKColor(white: 1, alpha: 0.65)
-        title.text = "SLING DUO"
-        scoreLabel.fontSize = 30
-        hint.fontSize = 15
         layoutHUD()
         reset()
         #if DEBUG
-        if ProcessInfo.processInfo.environment["SLINGDUO_ESCAPE_UI_TEST"] == "1" {
-            prepareEscapeUITest()
-        }
+        scheduleUIPreview()
         #endif
     }
 
+
+    #if DEBUG
+    private func scheduleUIPreview() {
+        let environment = ProcessInfo.processInfo.environment
+        guard environment["SLINGDUO_ESCAPE_UI_TEST"] == "1" || environment["SLINGDUO_UI_SCREEN"] != nil else { return }
+        run(.sequence([.wait(forDuration: 0.3), .run { [weak self] in
+            guard let self else { return }
+            if environment["SLINGDUO_ESCAPE_UI_TEST"] == "1" { self.prepareEscapeUITest() }
+            switch environment["SLINGDUO_UI_SCREEN"] {
+            case "rescue":
+                _ = self.flow.beginAim()
+                _ = self.flow.advance(2.6, y: self.jumper.position.y, verticalSpeed: 0, targetY: self.nextLedge.grabPoint.y)
+                self.publishHUD()
+                self.setGameplayPaused(true)
+            case "expiryAiming", "expiryFlying":
+                _ = self.flow.beginAim()
+                _ = self.flow.advance(3.85, y: self.jumper.position.y, verticalSpeed: 0, targetY: self.nextLedge.grabPoint.y)
+                if environment["SLINGDUO_UI_SCREEN"] == "expiryAiming" {
+                    self.drag = self.jumper.position
+                } else { self.flow.launch() }
+                self.publishHUD()
+            case "defeat":
+                self.score = 42
+                self.points = 86
+                self.progress.advance(83)
+                _ = self.progress.catchPlatform(height: 42, streak: 14)
+                self.finish()
+            default: break
+            }
+        }]), withKey: "UITestPreview")
+    }
+    #endif
 
     override func willMove(from view: SKView) {
         sound.suspend()
@@ -183,6 +162,7 @@ final class GameScene: SKScene, ObservableObject {
         steeringTouch = nil
         slide.reset()
         if paused, let touch = activeTouch { touchesCancelled([touch], with: nil) }
+        publishHUD()
         userPaused = paused
         isPaused = paused || !appActive
         previousTime = 0
@@ -217,6 +197,7 @@ final class GameScene: SKScene, ObservableObject {
         }
         nextLedge.setTarget(true)
         updateRunHUD()
+        publishHUD()
         if !userPaused && appActive { startMotion() }
     }
 
@@ -237,19 +218,9 @@ final class GameScene: SKScene, ObservableObject {
     }
 
     private func updateRescueMeter() {
-        rescueTrack.isHidden = !flow.isRescuing
-        rescueFill.isHidden = !flow.isRescuing
-        guard flow.isRescuing else { return }
-        let fraction = CGFloat(flow.rescueRemaining / JumpTuning.rescueDuration)
-        if flow.rescueRemaining <= 1 {
-            rescueFill.alpha = 0.5 + 0.5 * abs(sin(flow.rescueRemaining * .pi * 5))
-            if !rescueWarningPlayed {
-                rescueWarningPlayed = true
-                sound.play(.miss)
-            }
-        } else { rescueFill.alpha = 1 }
-        rescueFill.xScale = fraction
-        rescueFill.position.x = -50 * (1 - fraction)
+        guard flow.isRescuing, flow.rescueRemaining <= 1, !rescueWarningPlayed else { return }
+        rescueWarningPlayed = true
+        sound.play(.miss)
     }
 
     private func beginRescue() {
@@ -261,7 +232,7 @@ final class GameScene: SKScene, ObservableObject {
         velocity = velocity * 0.25
         tilt.stopSteering()
         rope.reset()
-        hint.fontColor = SKColor(red: 1, green: 0.76, blue: 0.4, alpha: 1)
+
         sound.play(.miss)
         UINotificationFeedbackGenerator().notificationOccurred(.warning)
     }
@@ -269,28 +240,22 @@ final class GameScene: SKScene, ObservableObject {
     override func didChangeSize(_ oldSize: CGSize) {
         guard ready else { return }
         layoutHUD()
-        // Rebuild the short prototype run when the playfield changes size.
+        // Rebuild when the initial SpriteView size adopts the device viewport.
         reset()
+        #if DEBUG
+        scheduleUIPreview()
+        #endif
     }
 
     private func layoutHUD() {
         buildBackdrop()
-        let topInset = view?.safeAreaInsets.top ?? 0
-        title.position = CGPoint(x: 0, y: size.height / 2 - max(70, topInset + 25))
-        scoreLabel.position = title.position + CGVector(dx: 0, dy: -50)
-        pointsLabel.position = scoreLabel.position + CGVector(dx: 0, dy: -23)
-        bestLabel.position = scoreLabel.position + CGVector(dx: 0, dy: -43)
-        recordToast.position = bestLabel.position + CGVector(dx: 0, dy: -49)
-        tempoLabel.position = bestLabel.position + CGVector(dx: 0, dy: -20)
-        rescueTrack.position = CGPoint(x: 0, y: -size.height / 2 + 83)
-        rescueFill.position = rescueTrack.position
-        retryCard.position = CGPoint(x: 0, y: 15)
-        hint.position = CGPoint(x: 0, y: -size.height / 2 + max(48, (view?.safeAreaInsets.bottom ?? 0) + 24))
     }
 
     private func reset() {
         removeAllActions()
         escapeSummary = nil
+        runSummary = nil
+        hudClock = 0
         progress = EscapeProgress(turbo: turboEnabled)
         best = UserDefaults.standard.integer(forKey: progress.recordPrefix + ".height")
         backdrop.alpha = 1
@@ -298,27 +263,26 @@ final class GameScene: SKScene, ObservableObject {
         for child in children where child !== gameCamera && child !== rope.node && child !== aim { child.removeFromParent() }
         rope.reset()
         aim.isHidden = true
-        retryCard.isHidden = true
-        rescueTrack.isHidden = true
-        rescueFill.isHidden = true
-        scoreLabel.isHidden = false
-        bestLabel.isHidden = false
+
+
+
+
         trailClock = 0
         happyTime = 0
         celebratedRecord = false
-        recordToast.removeAllActions()
-        recordToast.alpha = 0
-        scoreLabel.removeAllActions()
-        scoreLabel.setScale(1)
+        rescueWarningPlayed = false
+
+
+
+
         mint.resetPersonality()
         coral.resetPersonality()
         score = 0
         points = 0
         tempo.reset()
-        updateTempoHUD()
         rewards = CatchRewards()
         updatePointsHUD()
-        pointsLabel.isHidden = false
+
         upcoming.removeAll()
         steeringTouch = nil
         slide.reset()
@@ -349,10 +313,11 @@ final class GameScene: SKScene, ObservableObject {
         previousTime = 0
         accumulator = 0
         gameCamera.position = CGPoint(x: size.width / 2, y: size.height / 2)
-        hint.text = startHint
-        hint.fontColor = .white.withAlphaComponent(0.7)
+
+
         updateRunHUD()
         rope.updateDragVisual(anchor: anchor.position, free: jumper.position)
+        publishHUD()
     }
 
     private func fillUpcoming() {
@@ -370,13 +335,16 @@ final class GameScene: SKScene, ObservableObject {
 
     override func update(_ currentTime: TimeInterval) {
         guard ready, !userPaused, appActive else { return }
-        defer { previousTime = currentTime }
+        defer {
+            previousTime = currentTime
+            if hudClock >= 0.1 { publishHUD(); hudClock = 0 }
+        }
         guard !ended, !progress.awaitingChoice else { return }
         let elapsed = previousTime == 0 ? 1.0 / 60 : max(0, min(1.0 / 15, currentTime - previousTime))
+        hudClock += elapsed
         if flow.phase != .ready || flow.deadlineActive { progress.advance(elapsed) }
         if turboEnabled && (flow.phase != .ready || flow.deadlineActive) {
             tempo.advance(elapsed)
-            updateTempoHUD()
         }
         let multiplier = turboEnabled ? tempo.multiplier : 1
         accumulator += elapsed * multiplier
@@ -409,9 +377,27 @@ final class GameScene: SKScene, ObservableObject {
         }
     }
 
-    private func updateTempoHUD() {
-        tempoLabel.isHidden = !turboEnabled
-        tempoLabel.text = String(format: "TURBO ×%.2f", tempo.multiplier)
+    private func publishHUD() {
+        var state = GameHUDState()
+        state.height = score
+        state.points = points
+        state.streak = rewards.streak
+        state.best = best
+        state.newBest = celebratedRecord
+        state.endless = progress.endless
+        state.turbo = turboEnabled
+        state.tempo = tempo.multiplier
+        state.seconds = Int(progress.seconds)
+        if flow.isRescuing { state.remaining = ceil(flow.rescueRemaining * 10) / 10 }
+        switch flow.phase {
+        case .ready: state.instruction = "Pull a hero to launch"
+        case .aiming: state.instruction = "Release to fly"
+        case .rescue: state.instruction = "Pull to save the duo"
+        case .handoff: state.instruction = "Your partner is up next"
+        case .flying: state.instruction = steeringMode == .tilt ? "Tilt gently to steer" : "Slide left or right to steer"
+        case .over: state.instruction = "Same rope. Another chance."
+        }
+        if state != hud { hud = state }
     }
 
     private func simulate(_ dt: TimeInterval, realDelta: TimeInterval) {
@@ -441,8 +427,8 @@ final class GameScene: SKScene, ObservableObject {
                 rope.reset()
                 rope.launchPulse()
                 trailClock = 0
-                hint.text = steeringHint
-                hint.fontColor = .white.withAlphaComponent(0.7)
+
+
                 sound.play(.launch)
                 launchHaptic.impactOccurred(intensity: 0.35)
             }
@@ -486,14 +472,14 @@ final class GameScene: SKScene, ObservableObject {
             beginRescue()
         }
         if flow.phase == .rescue {
-            hint.text = "MISSED • PULL TO SAVE \(Int(ceil(flow.rescueRemaining)))"
+
             if jumper.position.y < gameCamera.position.y - size.height / 2 - 100 { finish() }
         }
     }
 
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
         guard !userPaused, appActive, !progress.awaitingChoice, let touch = touches.first, activeTouch == nil else { return }
-        if ended { reset(); return }
+        if ended { return }
         if steeringMode == .slide && (flight || flow.phase == .handoff) {
             guard steeringTouch == nil else { return }
             steeringTouch = touch
@@ -507,7 +493,7 @@ final class GameScene: SKScene, ObservableObject {
         draggedDistance = 0
         drag = jumper.position
         launchHaptic.prepare()
-        hint.text = "RELEASE TO FLY"
+
     }
     override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
         if let touch = steeringTouch, touches.contains(touch) {
@@ -540,10 +526,10 @@ final class GameScene: SKScene, ObservableObject {
         activeTouch = nil
         tilt.calibrate(gravityInput)
         flow.launch()
-        hint.fontColor = .white.withAlphaComponent(0.7)
+
         rope.reset()
         rope.launchPulse()
-        hint.text = steeringHint
+
     }
     override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
         if let touch = steeringTouch, touches.contains(touch) {
@@ -557,17 +543,14 @@ final class GameScene: SKScene, ObservableObject {
         aim.isHidden = true
         velocity = .zero
         flow.cancelAim()
-        hint.text = flow.phase == .rescue ? "PULL TO SAVE THE DUO" : startHint
+
     }
     private func clamped(_ point: CGPoint) -> CGPoint {
         let offset = point - anchor.position
         return anchor.position + offset.normalized() * min(offset.length, GameConstants.maxDragDistance)
     }
 
-    private func updatePointsHUD() {
-        let progress = rewards.streak % 5
-        pointsLabel.text = "SCORE \(points) • COMBO \(progress)/5"
-    }
+    private func updatePointsHUD() { publishHUD() }
 
     private func land(on chosen: LedgeNode? = nil, contact: CGPoint) {
         let destination = chosen ?? nextLedge!
@@ -610,15 +593,7 @@ final class GameScene: SKScene, ObservableObject {
         happyTime = 0.65
         score += 1
         if score > best {
-            if !celebratedRecord {
-                celebratedRecord = true
-                recordToast.removeAllActions()
-                recordToast.run(.sequence([
-                    .fadeIn(withDuration: 0.12),
-                    .wait(forDuration: 1.3),
-                    .fadeOut(withDuration: 0.35)
-                ]))
-            }
+            celebratedRecord = true
             best = score
             UserDefaults.standard.set(best, forKey: progress.recordPrefix + ".height")
         }
@@ -629,16 +604,10 @@ final class GameScene: SKScene, ObservableObject {
         handoffTarget = PartnerLaunch.startPosition(anchor: anchor.position, target: nextLedge.grabPoint)
         nextLedge.setTarget(true)
         flow.land()
+        rescueWarningPlayed = false
         rope.reset()
         rope.pulse()
         updateRunHUD()
-        scoreLabel.run(.sequence([
-            .scale(to: 1.12, duration: 0.08),
-            .scale(to: 1, duration: 0.16)
-        ]), withKey: "scorePop")
-        hint.text = score % 5 == 0
-            ? "\(score) UP. STILL TOGETHER!"
-            : ["TEAMWORK!", "STILL FRIENDS!", "NO ONE PANIC.", "UP WE GO!"][score % 4]
         sound.play(.grab, step: score + (award.perfect ? 2 : 0))
         if award.combo { UINotificationFeedbackGenerator().notificationOccurred(.success) }
         else { UIImpactFeedbackGenerator(style: .light).impactOccurred(intensity: award.perfect ? 1 : 0.5) }
@@ -659,11 +628,6 @@ final class GameScene: SKScene, ObservableObject {
 
 
     private func updateRunHUD() {
-        let chapter = score < 50 ? "THE DEPTHS" : (score < 100 ? "THE CLIMB" : "DAYLIGHT AHEAD")
-        title.fontSize = progress.endless ? 19 : 14
-        title.text = progress.endless ? "ENDLESS" : chapter
-        scoreLabel.text = progress.endless ? "HEIGHT \(score)" : "\(score) / \(EscapeProgress.goal)"
-        bestLabel.text = (progress.usedTurbo ? "TURBO BEST " : "BEST ") + "\(best)"
         let light = CGFloat(min(score, EscapeProgress.goal)) / CGFloat(EscapeProgress.goal)
         backdrop.alpha = 1 - light * 0.35
         backgroundColor = SKColor(red: 0.055 + light * 0.32, green: 0.075 + light * 0.23,
@@ -702,8 +666,8 @@ final class GameScene: SKScene, ObservableObject {
         slide.reset()
         tilt.stopSteering()
         aim.isHidden = true
-        rescueTrack.isHidden = true
-        rescueFill.isHidden = true
+
+
         nextLedge.setTarget(false)
         motion.stopDeviceMotionUpdates()
         let defaults = UserDefaults.standard
@@ -712,8 +676,8 @@ final class GameScene: SKScene, ObservableObject {
         if previous == 0 || progress.seconds < previous { defaults.set(progress.seconds, forKey: key) }
         mint.updatePersonality(.happy, lookingAt: current.grabPoint, deltaTime: 0)
         coral.updatePersonality(.happy, lookingAt: current.grabPoint, deltaTime: 0)
-        hint.text = "WE MADE IT. TOGETHER!"
-        hint.fontColor = .systemYellow
+
+
         // Bring both partners to the exit before offering the endless continuation.
         anchor.run(.move(to: current.grabPoint + CGVector(dx: -20, dy: 5), duration: 0.45))
         jumper.run(.move(to: current.grabPoint + CGVector(dx: 20, dy: 5), duration: 0.45))
@@ -727,6 +691,7 @@ final class GameScene: SKScene, ObservableObject {
         run(.sequence([.wait(forDuration: 0.6), .run { [weak self] in
             guard let self else { return }
             self.rope.render(anchor: self.anchor.ropeAttachment, free: self.jumper.ropeAttachment)
+            self.publishHUD()
             self.escapeSummary = EscapeSummary(points: self.points, seconds: self.progress.seconds,
                 longestCombo: self.progress.longestCombo, turbo: self.progress.usedTurbo)
         }]), withKey: "escapeCelebration")
@@ -793,56 +758,28 @@ final class GameScene: SKScene, ObservableObject {
         }
     }
 
-    private func setupRetryCard() {
-        retryCard.zPosition = 150
-        retryCard.isHidden = true
-        let width = min(size.width - 40, 310)
-        let panel = SKShapeNode(rectOf: CGSize(width: width, height: 210), cornerRadius: 24)
-        panel.fillColor = SKColor(red: 0.09, green: 0.12, blue: 0.23, alpha: 0.98)
-        panel.strokeColor = SKColor(red: 0.35, green: 0.43, blue: 0.62, alpha: 1)
-        panel.lineWidth = 1.5
-        retryCard.addChild(panel)
-        retryTitle.text = "A LITTLE TANGLED."
-        retryTitle.fontSize = 18
-        retryTitle.fontColor = SKColor(red: 1, green: 0.76, blue: 0.4, alpha: 1)
-        retryTitle.position.y = 60
-        retryScore.fontSize = 48
-        retryScore.position.y = 0
-        retryBest.fontSize = 13
-        retryBest.position.y = -30
-        let prompt = SKLabelNode(fontNamed: "AvenirNext-Bold")
-        prompt.text = "TAP ANYWHERE TO RETRY"
-        prompt.fontSize = 12
-        prompt.position.y = -75
-        for label in [retryTitle, retryScore, retryBest, prompt] { retryCard.addChild(label) }
-        gameCamera.addChild(retryCard)
-    }
-
     private func finish() {
+        // JumpFlow may already be .over when its deadline expires. Guard the
+        // presentation, not the phase, so every expiry still produces a result.
+        guard runSummary == nil else { return }
         aim.isHidden = true
         flow.finish()
         sound.play(.end)
-        rescueTrack.isHidden = true
-        rescueFill.isHidden = true
+
+
         mint.updatePersonality(.dizzy, lookingAt: coral.position, deltaTime: 0)
         coral.updatePersonality(.dizzy, lookingAt: mint.position, deltaTime: 0)
-        recordToast.removeAllActions()
-        recordToast.alpha = 0
+
+
         activeTouch = nil
         drag = nil
         best = max(best, score)
         saveRunRecords()
         UserDefaults.standard.set(best, forKey: progress.recordPrefix + ".height")
         nextLedge.setTarget(false)
-        retryScore.text = "\(score)"
-        retryBest.text = "SCORE \(points) • BEST HEIGHT \(best)"
-        retryCard.isHidden = false
-        retryCard.setScale(0.92)
-        retryCard.run(.scale(to: 1, duration: 0.15))
-        pointsLabel.isHidden = true
-        scoreLabel.isHidden = true
-        bestLabel.isHidden = true
-        hint.text = "SAME ROPE. ANOTHER CHANCE."
-        hint.fontColor = SKColor(red: 1, green: 0.76, blue: 0.4, alpha: 1)
+        runSummary = RunSummary(height: score, points: points, seconds: progress.seconds,
+            longestCombo: max(progress.longestCombo, rewards.streak), turbo: progress.usedTurbo,
+            endless: progress.endless, bestHeight: best)
+        publishHUD()
     }
 }

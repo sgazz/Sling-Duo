@@ -206,6 +206,21 @@ struct Sling_DuoTests {
         }
     }
 
+    @Test func deadlineExpiresAtFourRealSecondsIncludingFractionalTurboSteps() {
+        for multiplier in [1.0, 1.05, 2, 3] {
+            var flow = JumpFlow()
+            _ = flow.beginAim()
+            var elapsed = 0.0
+            while elapsed < 4 {
+                let realStep = min(1.0 / 120 / multiplier, 4 - elapsed)
+                _ = flow.advance(1.0 / 120, y: 0, verticalSpeed: 0, targetY: 100, realDelta: realStep)
+                elapsed += realStep
+            }
+            #expect(flow.rescueRemaining == 0)
+            #expect(flow.phase == .over)
+        }
+    }
+
     @Test func holdingRescueAimStillConsumesTheDeadline() {
         var flow = JumpFlow()
         flow.launch()

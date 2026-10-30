@@ -48,7 +48,9 @@ struct JumpFlow {
     }
     mutating func advance(_ dt: TimeInterval, y: CGFloat, verticalSpeed: CGFloat, targetY: CGFloat, realDelta: TimeInterval? = nil) -> Event {
         if isRescuing {
-            rescueRemaining = max(0, rescueRemaining - max(0, realDelta ?? dt))
+            let remaining = rescueRemaining - max(0, realDelta ?? dt)
+            // Avoid a residual fraction rounding up to 0.1s at the deadline.
+            rescueRemaining = remaining <= 0.000000001 ? 0 : remaining
             if rescueRemaining == 0 { finish(); return .rescueExpired }
         }
         switch phase {
@@ -245,7 +247,8 @@ struct EscapeProgress {
     }
     var recordPrefix: String {
         #if DEBUG
-        if ProcessInfo.processInfo.environment["SLINGDUO_ESCAPE_UI_TEST"] == "1" {
+        if ProcessInfo.processInfo.environment["SLINGDUO_ESCAPE_UI_TEST"] == "1"
+            || ProcessInfo.processInfo.environment["SLINGDUO_UI_SCREEN"] != nil {
             return "SlingDuo.testRecords." + (usedTurbo ? "turbo" : "normal")
         }
         #endif

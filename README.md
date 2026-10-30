@@ -1,6 +1,6 @@
 # Sling Duo
 
-An iPhone arcade prototype about two climbers connected by an elastic rope. Launch once, steer with tilt, and keep the pair climbing in rhythm.
+An iPhone and iPad arcade prototype about two climbers connected by an elastic rope. Launch once, steer with tilt, and keep the pair climbing in rhythm.
 
 ## Escape and Endless
 
@@ -14,7 +14,7 @@ Height, score, combo and fastest Escape records are stored separately for normal
 - Tilt left or right to steer the airborne climber, or choose Controls: Slide in the pause menu. In Slide mode, touch anywhere during flight and drag horizontally relative to that touch; release to brake. The choice survives relaunches.
 - Catch a platform to swap roles and automatically launch the partner.
 - The first manual pull starts a four-second deadline. It continues through release, flight and repeated misses; only a successful catch restores it. After an automatic jump misses, the same rescue deadline starts.
-- Tap anywhere after game over to restart. The best score is saved locally.
+- Choose Try Again on the result screen to restart. Records are saved locally.
 - Pause with the pause button; Continue gives a three-second countdown. Returning from the background also requires Continue.
 - HEIGHT counts catches; SCORE awards one point per catch and two for moving platforms. Descending catches in the central 30% of a platform earn +1 PERFECT. Every fifth consecutive catch earns +2 COMBO. A miss or a trick platform breaks the streak; trick platforms always give zero points.
 - Use the speaker button to mute sound; the preference survives relaunches.
@@ -22,6 +22,12 @@ Height, score, combo and fastest Escape records are stored separately for normal
 The first three jumps are forgiving. Later platforms require sideways steering, and small gold platforms appear from the seventh jump, once every five jumps. Automatic launches provide height rather than horizontal aim. The route is visible ahead to fill the viewport. After height 100, occasional gold platforms move slowly sideways and award double points; precision platforms never move. Each moving 2× platform has an alternative 0-point trick platform at the same height. Both can be caught; choosing the trick continues the climb without awarding points.
 
 Experimental Turbo is available in the pause menu (Off by default). Every five active seconds it adds 5% to simulation speed, reaching 3× after 200 seconds. Pauses and resume countdown do not advance it. Restarting a run or toggling the mode resets the ramp. Rescue deadlines remain real-time.
+
+## Interface
+
+The default Compact HUD shows height and points in one narrow row. Pause → HUD cycles Compact, Hidden and Full, and saves the preference. Hidden retains only Pause and any active deadline warning. Full shows Escape progress, height, points, combo, active time and Turbo tempo. The rescue card displays the remaining deadline to one decimal place and changes color in the last second. Informational overlays pass touches through to the game.
+
+A short first-launch guide introduces sling, steering and the deadline, and lets players choose Tilt or Slide. It can be reopened from How to Play in Pause. Pause, defeat and victory use a shared scrollable panel that adapts to phones and tablets, with explicit buttons for restarting or continuing.
 
 ## Run
 
@@ -31,7 +37,8 @@ A physical iPhone is needed to evaluate tilt, haptics, and silent-switch behavio
 
 ## Code
 
-- `GameScene.swift`: game flow, touch handling, Core Motion, camera, and feedback.
+- `GameScene.swift`: game flow, touch handling, Core Motion, camera, feedback, and throttled HUD snapshots.
+- `ContentView.swift` / `GameInterface.swift`: native HUD, onboarding, pause, countdown, and result screens.
 - `JumpMechanics.swift`: jump states, calibrated tilt response, shared physics, automatic launch solver, and camera behavior.
 - `LedgeSpawner.swift` / `LedgeNode.swift`: progressive routes, precision platforms, and swept grab detection.
 - `ClimberNode.swift` / `RubberRopeSystem.swift`: characters and rope presentation.
@@ -39,6 +46,6 @@ A physical iPhone is needed to evaluate tilt, haptics, and silent-switch behavio
 
 ## Tests
 
-Run the test targets with **Product → Test** in Xcode. Unit tests cover jump transitions, rescue timing, tilt response, reachability, precision platforms, and preventing unattended climbing. UI tests cover pause/resume, background interruption, and mute preference persistence.
+Run the test targets with **Product → Test** in Xcode. Unit tests cover jump transitions, rescue timing, tilt response, reachability, precision platforms, and preventing unattended climbing. UI tests cover onboarding, help, HUD touch-through, pause/resume, background interruption, settings persistence, rescue UI, and both result flows.
 
 This repository is an actively tuned gameplay prototype.
