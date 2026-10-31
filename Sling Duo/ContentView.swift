@@ -8,27 +8,55 @@ struct ContentView: View {
     @AppStorage("SlingDuo.steeringMode") private var steeringMode = "tilt"
     @AppStorage("SlingDuo.turboEnabled") private var turboEnabled = false
     @AppStorage("SlingDuo.didSeeTutorial") private var didSeeTutorial = false
+    @AppStorage("SlingDuo.didSeeStory") private var didSeeStory = false
     @AppStorage("SlingDuo.hudMode") private var hudMode = "compact"
+    @AppStorage("SlingDuo.unlocked.crystalCavern") private var crystalCavernUnlocked = false
+    @AppStorage("SlingDuo.unlocked.undergroundRiver") private var undergroundRiverUnlocked = false
+    @AppStorage("SlingDuo.unlocked.ancientRuins") private var ancientRuinsUnlocked = false
+    @AppStorage("SlingDuo.unlocked.volcanicPassage") private var volcanicPassageUnlocked = false
+    @AppStorage("SlingDuo.unlocked.frozenRift") private var frozenRiftUnlocked = false
+    @AppStorage("SlingDuo.unlocked.glowrootGrotto") private var glowrootGrottoUnlocked = false
+    @AppStorage("SlingDuo.unlocked.stormChasm") private var stormChasmUnlocked = false
+    @AppStorage("SlingDuo.unlocked.daybreakExit") private var daybreakExitUnlocked = false
+    @AppStorage("SlingDuo.dawnheartFragmentMask") private var dawnheartFragmentMask = 0
+    @State private var selectedCave: CaveID?
     @State private var paused = false
     @State private var showingTutorial = false
     @State private var tutorialFromPause = false
     @State private var countdown: Int?
     @State private var resumeTask: Task<Void, Never>?
 
+    // Temporary while the level package is being play-tested. Flip this to
+    // false when campaign gating is ready for players.
+    private let allCavesUnlockedForTesting = true
+    private var dawnheartFragments: Int { dawnheartFragmentMask.nonzeroBitCount }
+
     var body: some View {
-        ZStack {
-            SpriteView(scene: scene, preferredFramesPerSecond: 60).ignoresSafeArea()
-            GameHUDOverlay(mode: HUDMode(rawValue: hudMode) ?? .compact, state: scene.hud, soundEnabled: soundEnabled,
-                           pause: pause, toggleSound: { soundEnabled.toggle() })
-                .accessibilityHidden(paused || showingTutorial || scene.runSummary != nil || scene.escapeSummary != nil)
-            if let summary = scene.runSummary { defeat(summary).accessibilityHidden(paused || showingTutorial) }
-            if let summary = scene.escapeSummary { victory(summary).accessibilityHidden(paused || showingTutorial) }
-            if paused && !showingTutorial { pauseOverlay }
-            if showingTutorial {
-                HowToPlayView(steeringMode: $steeringMode, returning: tutorialFromPause) {
-                    didSeeTutorial = true
-                    showingTutorial = false
-                    if !tutorialFromPause { scene.setGameplayPaused(false) }
+        Group {
+            if !didSeeStory {
+                IntroStoryView { didSeeStory = true }
+            } else if selectedCave == nil {
+                CaveMapView(crystalUnlocked: crystalCavernUnlocked, riverUnlocked: undergroundRiverUnlocked,
+                            ruinsUnlocked: ancientRuinsUnlocked, volcanicUnlocked: volcanicPassageUnlocked,
+                            frozenUnlocked: frozenRiftUnlocked, glowrootUnlocked: glowrootGrottoUnlocked,
+                            stormUnlocked: stormChasmUnlocked, daybreakUnlocked: daybreakExitUnlocked,
+                            fragmentMask: dawnheartFragmentMask, unlocksAllCaves: allCavesUnlockedForTesting, select: start)
+            } else {
+                ZStack {
+                    SpriteView(scene: scene, preferredFramesPerSecond: 60).ignoresSafeArea()
+                    GameHUDOverlay(mode: HUDMode(rawValue: hudMode) ?? .compact, state: scene.hud, soundEnabled: soundEnabled,
+                                   pause: pause, toggleSound: { soundEnabled.toggle() })
+                        .accessibilityHidden(paused || showingTutorial || scene.runSummary != nil || scene.escapeSummary != nil)
+                    if let summary = scene.runSummary { defeat(summary).accessibilityHidden(paused || showingTutorial) }
+                    if let summary = scene.escapeSummary { victory(summary).accessibilityHidden(paused || showingTutorial) }
+                    if paused && !showingTutorial { pauseOverlay }
+                    if showingTutorial {
+                        HowToPlayView(steeringMode: $steeringMode, returning: tutorialFromPause) {
+                            didSeeTutorial = true
+                            showingTutorial = false
+                            if !tutorialFromPause { resume() }
+                        }
+                    }
                 }
             }
         }
@@ -38,6 +66,17 @@ struct ContentView: View {
         .onChange(of: turboEnabled) { _, enabled in scene.turboEnabled = enabled }
         .onChange(of: steeringMode) { _, mode in scene.steeringMode = SteeringMode(rawValue: mode) ?? .tilt }
         .onChange(of: soundEnabled) { _, enabled in scene.soundEnabled = enabled }
+        .onChange(of: scene.escapeSummary?.cave) { _, completedCave in
+            if let completedCave { dawnheartFragmentMask |= completedCave.dawnheartBit }
+            if completedCave == .depths { crystalCavernUnlocked = true }
+            if completedCave == .crystalCavern { undergroundRiverUnlocked = true }
+            if completedCave == .undergroundRiver { ancientRuinsUnlocked = true }
+            if completedCave == .ancientRuins { volcanicPassageUnlocked = true }
+            if completedCave == .volcanicPassage { frozenRiftUnlocked = true }
+            if completedCave == .frozenRift { glowrootGrottoUnlocked = true }
+            if completedCave == .glowrootGrotto { stormChasmUnlocked = true }
+            if completedCave == .stormChasm { daybreakExitUnlocked = true }
+        }
         .onChange(of: phase) { _, newPhase in
             scene.setActive(newPhase == .active)
             if newPhase != .active { pause() }
@@ -49,9 +88,25 @@ struct ContentView: View {
         scene.turboEnabled = turboEnabled
         scene.soundEnabled = soundEnabled
         scene.steeringMode = SteeringMode(rawValue: steeringMode) ?? .tilt
-        var needsTutorial = !didSeeTutorial
         #if DEBUG
         let environment = ProcessInfo.processInfo.environment
+        let launchesGameplayForTest = environment["SLINGDUO_SKIP_ONBOARDING"] == "1"
+            || environment["SLINGDUO_SHOW_ONBOARDING"] == "1"
+            || environment["SLINGDUO_ESCAPE_UI_TEST"] == "1"
+            || environment["SLINGDUO_UI_SCREEN"] != nil
+        if selectedCave == nil, launchesGameplayForTest {
+            didSeeStory = true
+            selectedCave = .depths
+            scene.selectCave(.depths)
+            scene.setGameplayPaused(false)
+        }
+        #endif
+        guard selectedCave != nil else {
+            scene.setGameplayPaused(true)
+            return
+        }
+        var needsTutorial = !didSeeTutorial
+        #if DEBUG
         if environment["SLINGDUO_SKIP_ONBOARDING"] == "1" { needsTutorial = false }
         if environment["SLINGDUO_SHOW_ONBOARDING"] == "1" { needsTutorial = true }
         if environment["SLINGDUO_HUD_COMPACT_TEST"] == "1" { hudMode = "compact" }
@@ -60,6 +115,31 @@ struct ContentView: View {
             showingTutorial = true
             scene.setGameplayPaused(true)
         }
+    }
+
+    private func start(_ cave: CaveID) {
+        resumeTask?.cancel()
+        scene.turboEnabled = turboEnabled
+        scene.soundEnabled = soundEnabled
+        scene.steeringMode = SteeringMode(rawValue: steeringMode) ?? .tilt
+        scene.setGameplayPaused(true)
+        scene.selectCave(cave)
+        selectedCave = cave
+        if !didSeeTutorial {
+            tutorialFromPause = false
+            showingTutorial = true
+        } else {
+            paused = true
+            resume()
+        }
+    }
+
+    private func returnToMap() {
+        resumeTask?.cancel()
+        scene.setGameplayPaused(true)
+        paused = false
+        showingTutorial = false
+        selectedCave = nil
     }
 
     private var pauseOverlay: some View {
@@ -131,15 +211,23 @@ struct ContentView: View {
                 StatTile(label: "Time", value: EscapeProgress.timeText(summary.seconds))
                 StatTile(label: "Best combo", value: "\(summary.longestCombo)")
             }
+            DawnheartReward(fragmentCount: dawnheartFragments, cave: summary.cave)
+            if let next = summary.cave.next {
+                Button("Enter \(next.title)") {
+                    start(next)
+                }.buttonStyle(GameActionStyle()).accessibilityIdentifier("nextCave")
+                Text("A new cave is open. Each expedition has its own records.")
+                    .font(.caption).foregroundStyle(.white.opacity(0.5)).multilineTextAlignment(.center).padding(.top, -12)
+            }
             Button("Keep Climbing") {
                 scene.setGameplayPaused(true)
                 scene.continueEndless()
                 paused = true
                 resume()
-            }.buttonStyle(GameActionStyle()).accessibilityIdentifier("keepClimbing")
+            }.buttonStyle(GameActionStyle(primary: summary.cave.next == nil)).accessibilityIdentifier("keepClimbing")
             Text("Continue this run in Endless. Keep your score and tempo.")
                 .font(.caption).foregroundStyle(.white.opacity(0.5)).multilineTextAlignment(.center).padding(.top, -12)
-            Button("Play Again") { scene.setGameplayPaused(true); scene.restartFromMenu(); paused = true; resume() }
+            Button("Cave Map", action: returnToMap)
                 .buttonStyle(GameActionStyle(primary: false)).accessibilityIdentifier("playAgain")
         }
     }

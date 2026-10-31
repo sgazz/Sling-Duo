@@ -17,8 +17,48 @@ struct PlatformArtwork {
         .init(name: "PlatformPrecision02", pixels: CGSize(width: 1774, height: 887), body: CGRect(x: 358, y: 326, width: 1058, height: 377)),
         .init(name: "PlatformPrecision03", pixels: CGSize(width: 1774, height: 887), body: CGRect(x: 59, y: 248, width: 1655, height: 465))
     ]
+    static let crystal: [PlatformArtwork] = [
+        .init(name: "CrystalPlatformNormal01", pixels: CGSize(width: 1774, height: 887),
+              body: CGRect(x: 42, y: 305, width: 1690, height: 360))
+    ]
+    static let river: [PlatformArtwork] = [
+        .init(name: "RiverPlatformNormal01", pixels: CGSize(width: 1983, height: 793),
+              body: CGRect(x: 22, y: 220, width: 1938, height: 410))
+    ]
+    static let riverPrecision: [PlatformArtwork] = [
+        .init(name: "RiverPlatformPrecision01", pixels: CGSize(width: 1983, height: 793),
+              body: CGRect(x: 400, y: 225, width: 1160, height: 355))
+    ]
+    static let riverMoving: [PlatformArtwork] = [
+        .init(name: "RiverPlatformMoving01", pixels: CGSize(width: 1983, height: 793),
+              body: CGRect(x: 158, y: 190, width: 1670, height: 425))
+    ]
+    static let ruins: [PlatformArtwork] = [
+        .init(name: "RuinsPlatformNormal01", pixels: CGSize(width: 1774, height: 887),
+              body: CGRect(x: 25, y: 270, width: 1724, height: 440))
+    ]
+    static let volcanic: [PlatformArtwork] = [
+        .init(name: "VolcanicPlatformNormal01", pixels: CGSize(width: 1792, height: 1024),
+              body: CGRect(x: 30, y: 315, width: 1730, height: 420))
+    ]
+    static let frozen: [PlatformArtwork] = [
+        .init(name: "FrozenPlatformNormal01", pixels: CGSize(width: 2048, height: 768),
+              body: CGRect(x: 32, y: 105, width: 1984, height: 560))
+    ]
+    static let glowroot: [PlatformArtwork] = [
+        .init(name: "GlowrootPlatformNormal01", pixels: CGSize(width: 1920, height: 819),
+              body: CGRect(x: 32, y: 160, width: 1856, height: 470))
+    ]
+    static let storm: [PlatformArtwork] = [
+        .init(name: "StormPlatformNormal01", pixels: CGSize(width: 2172, height: 724),
+              body: CGRect(x: 32, y: 115, width: 2108, height: 470))
+    ]
+    static let daybreak: [PlatformArtwork] = [
+        .init(name: "DaybreakPlatformNormal01", pixels: CGSize(width: 2172, height: 724),
+              body: CGRect(x: 32, y: 115, width: 2108, height: 470))
+    ]
 
-    private static let textures = Dictionary(uniqueKeysWithValues: (normal + precision).map { art in
+    private static let textures = Dictionary(uniqueKeysWithValues: (normal + precision + crystal + river + riverPrecision + riverMoving + ruins + volcanic + frozen + glowroot + storm + daybreak).map { art in
         (art.name, SKTexture(imageNamed: art.name))
     })
 

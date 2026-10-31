@@ -20,11 +20,15 @@ struct ClimbDifficulty {
 
 final class LedgeSpawner {
     private let sceneWidth: CGFloat
+    private let style: PlatformStyle
 
-    init(sceneWidth: CGFloat) { self.sceneWidth = sceneWidth }
+    init(sceneWidth: CGFloat, style: PlatformStyle = .depths) {
+        self.sceneWidth = sceneWidth
+        self.style = style
+    }
 
     func startingLedge(y: CGFloat) -> LedgeNode {
-        LedgeNode(center: CGPoint(x: sceneWidth / 2, y: y))
+        LedgeNode(center: CGPoint(x: sceneWidth / 2, y: y), style: style)
     }
 
     func nextLedge(above ledge: LedgeNode, score: Int) -> LedgeNode {
@@ -80,12 +84,21 @@ final class LedgeSpawner {
                 gap = restJump ? 145 : CGFloat.random(in: difficulty.minimumGap...difficulty.maximumGap)
             }
         }
+        let stormMotion: Bool
+        switch style {
+        case .storm:
+            // The open chasm introduces regular, predictable drifting ledges.
+            stormMotion = score >= 10 && score % 4 == 2 && !precisionJump
+        default:
+            stormMotion = false
+        }
+        let movingJump = stormMotion || (score >= 100 && score % 8 == 4 && !precisionJump)
         let result = LedgeNode(center: CGPoint(x: x, y: ledge.position.y + gap),
                          size: CGSize(width: width, height: GameConstants.ledgeSize.height),
-                         isPrecision: precisionJump)
+                         isPrecision: precisionJump, style: style, usesMovingArtwork: movingJump)
         if score == EscapeProgress.goal - 1 { result.markExit() }
         // Every eighth destination after height 100; never combine with precision.
-        if score >= 100 && score % 8 == 4 && !precisionJump {
+        if movingJump {
             result.trickAlternative = trickPlatform(opposite: result, above: ledge)
             result.configureMotion()
         }
@@ -104,7 +117,7 @@ final class LedgeSpawner {
             bonus.position.x = abs(bonusLow - x) > abs(bonusHigh - x) ? bonusLow : bonusHigh
         }
         let trick = LedgeNode(center: CGPoint(x: x, y: bonus.position.y),
-                              size: CGSize(width: width, height: GameConstants.ledgeSize.height))
+                              size: CGSize(width: width, height: GameConstants.ledgeSize.height), style: style)
         trick.configureTrick()
         return trick
     }

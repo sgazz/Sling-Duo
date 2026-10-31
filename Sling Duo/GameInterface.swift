@@ -33,6 +33,148 @@ struct GameHUDState: Equatable {
     var chapter: String { height < 50 ? "The Depths" : (height < 100 ? "The Climb" : "Daylight Ahead") }
 }
 
+struct CaveMapView: View {
+    let crystalUnlocked: Bool
+    let riverUnlocked: Bool
+    let ruinsUnlocked: Bool
+    let volcanicUnlocked: Bool
+    let frozenUnlocked: Bool
+    let glowrootUnlocked: Bool
+    let stormUnlocked: Bool
+    let daybreakUnlocked: Bool
+    let fragmentMask: Int
+    let unlocksAllCaves: Bool
+    let select: (CaveID) -> Void
+
+    var body: some View {
+        ZStack {
+            LinearGradient(colors: [GamePalette.ink, Color(red: 0.09, green: 0.12, blue: 0.22)], startPoint: .top, endPoint: .bottom)
+                .ignoresSafeArea()
+            ScrollView {
+                VStack(spacing: 22) {
+                    VStack(spacing: 8) {
+                        Text("SLING DUO").font(.caption.bold()).tracking(4).foregroundStyle(GamePalette.mint)
+                        Text("Choose a cave").font(.system(.largeTitle, design: .rounded, weight: .heavy))
+                        Text(unlocksAllCaves ? "All caves are open for testing." : "Each exit reveals the way forward.")
+                            .font(.subheadline).foregroundStyle(.white.opacity(0.62))
+                    }.padding(.top, 42)
+                    DawnheartProgress(fragmentMask: fragmentMask, total: CaveID.allCases.count)
+                    caveCard(.depths, unlocked: true)
+                    caveCard(.crystalCavern, unlocked: unlocksAllCaves || crystalUnlocked)
+                    caveCard(.undergroundRiver, unlocked: unlocksAllCaves || riverUnlocked)
+                    caveCard(.ancientRuins, unlocked: unlocksAllCaves || ruinsUnlocked)
+                    caveCard(.volcanicPassage, unlocked: unlocksAllCaves || volcanicUnlocked)
+                    caveCard(.frozenRift, unlocked: unlocksAllCaves || frozenUnlocked)
+                    caveCard(.glowrootGrotto, unlocked: unlocksAllCaves || glowrootUnlocked)
+                    caveCard(.stormChasm, unlocked: unlocksAllCaves || stormUnlocked)
+                    caveCard(.daybreakExit, unlocked: unlocksAllCaves || daybreakUnlocked)
+                }
+                .padding(.horizontal, 20).padding(.bottom, 40)
+                .frame(maxWidth: 520)
+                .frame(maxWidth: .infinity)
+            }
+        }.foregroundStyle(.white)
+    }
+
+    private func caveCard(_ cave: CaveID, unlocked: Bool) -> some View {
+        Button { if unlocked { select(cave) } } label: {
+            HStack(spacing: 16) {
+                Image(systemName: caveIcon(cave))
+                    .font(.system(size: 28, weight: .bold)).frame(width: 58, height: 68)
+                    .foregroundStyle(unlocked ? (cave == .depths ? GamePalette.gold : GamePalette.mint) : .white.opacity(0.28))
+                    .background(.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 18))
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(cave.title).font(.system(.title3, design: .rounded, weight: .heavy))
+                    Text(unlocked ? cave.subtitle : "Reach the previous exit to unlock.").font(.caption).foregroundStyle(.white.opacity(0.58))
+                }
+                Spacer(minLength: 0)
+                Image(systemName: unlocked ? "play.fill" : "lock.fill").font(.headline).foregroundStyle(unlocked ? GamePalette.mint : .white.opacity(0.3))
+            }
+            .padding(16).background(.white.opacity(unlocked ? 0.09 : 0.04), in: RoundedRectangle(cornerRadius: 24))
+            .overlay(RoundedRectangle(cornerRadius: 24).strokeBorder(unlocked ? .white.opacity(0.14) : .white.opacity(0.06)))
+        }.buttonStyle(.plain).disabled(!unlocked)
+    }
+
+    private func caveIcon(_ cave: CaveID) -> String {
+        switch cave {
+        case .depths: "mountain.2.fill"
+        case .crystalCavern: "sparkles"
+        case .undergroundRiver: "water.waves"
+        case .ancientRuins: "building.columns.fill"
+        case .volcanicPassage: "flame.fill"
+        case .frozenRift: "snowflake"
+        case .glowrootGrotto: "leaf.fill"
+        case .stormChasm: "cloud.bolt.fill"
+        case .daybreakExit: "sun.max.fill"
+        }
+    }
+}
+
+struct DawnheartProgress: View {
+    let fragmentMask: Int
+    let total: Int
+
+    private var fragmentCount: Int { fragmentMask.nonzeroBitCount }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 12) {
+                ZStack {
+                Circle().fill(GamePalette.gold.opacity(0.12)).frame(width: 46, height: 46)
+                Circle().stroke(GamePalette.gold.opacity(fragmentCount == total ? 1 : 0.5), lineWidth: 2)
+                    .frame(width: 34, height: 34)
+                Image(systemName: fragmentCount == total ? "sun.max.fill" : "sparkles")
+                    .font(.caption.bold()).foregroundStyle(GamePalette.gold)
+                }
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(fragmentCount == total ? "DAWNHEART RESTORED" : "DAWNHEART")
+                        .font(.caption2.bold()).tracking(1.4).foregroundStyle(GamePalette.gold)
+                    Text("\(fragmentCount) / \(total) fragments recovered")
+                        .font(.caption).foregroundStyle(.white.opacity(0.68))
+                }
+                Spacer()
+            }
+            HStack(spacing: 6) {
+                ForEach(0..<total, id: \.self) { index in
+                    let recovered = fragmentMask & (1 << index) != 0
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 6).fill(recovered ? GamePalette.gold.opacity(0.18) : .white.opacity(0.05))
+                        if recovered {
+                            Image("DawnheartFragment").resizable().scaledToFit().padding(3)
+                        } else {
+                            Image(systemName: "diamond").font(.caption2).foregroundStyle(.white.opacity(0.24))
+                        }
+                    }.frame(maxWidth: .infinity).frame(height: 30)
+                }
+            }
+        }
+        .padding(13).background(.white.opacity(0.07), in: RoundedRectangle(cornerRadius: 18))
+        .overlay(RoundedRectangle(cornerRadius: 18).strokeBorder(GamePalette.gold.opacity(0.16)))
+    }
+}
+
+struct DawnheartReward: View {
+    let fragmentCount: Int
+    let cave: CaveID
+
+    var body: some View {
+        HStack(spacing: 11) {
+            ZStack {
+                Circle().fill(GamePalette.gold.opacity(0.15)).frame(width: 42, height: 42)
+                Image("DawnheartFragment").resizable().scaledToFit().padding(5)
+            }
+            VStack(alignment: .leading, spacing: 3) {
+                Text(fragmentCount == CaveID.allCases.count ? "DAWNHEART RESTORED" : "DAWNHEART FRAGMENT FOUND")
+                    .font(.caption2.bold()).tracking(1.2).foregroundStyle(GamePalette.gold)
+                Text(fragmentCount == CaveID.allCases.count ? "The valley's light is returning." : "Recovered in \(cave.title) • \(fragmentCount) / \(CaveID.allCases.count)")
+                    .font(.caption).foregroundStyle(.white.opacity(0.68))
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(12).background(GamePalette.gold.opacity(0.08), in: RoundedRectangle(cornerRadius: 16))
+    }
+}
+
 struct RunSummary {
     let height: Int
     let points: Int

@@ -9,6 +9,7 @@ final class GameScene: SKScene, ObservableObject {
     @Published private(set) var runSummary: RunSummary?
     private var hudClock: TimeInterval = 0
     private var progress = EscapeProgress()
+    private var cave: CaveID = .depths
 
     private let mint = ClimberNode(hero: .cyan)
     private let coral = ClimberNode(hero: .orange)
@@ -179,6 +180,11 @@ final class GameScene: SKScene, ObservableObject {
 
     func restartFromMenu() { reset() }
 
+    func selectCave(_ cave: CaveID) {
+        self.cave = cave
+        reset()
+    }
+
     func continueEndless() {
         guard progress.awaitingChoice else { return }
         progress.keepClimbing()
@@ -240,8 +246,11 @@ final class GameScene: SKScene, ObservableObject {
     override func didChangeSize(_ oldSize: CGSize) {
         guard ready else { return }
         layoutHUD()
-        // Rebuild when the initial SpriteView size adopts the device viewport.
-        reset()
+        // A rotation, Split View resize, or window resize must not restart the
+        // current run. Keep all gameplay state and only update layout-dependent
+        // values used by the camera and subsequently spawned ledges.
+        gameCamera.position.x = size.width / 2
+        spawner = LedgeSpawner(sceneWidth: size.width, style: cave.platformStyle)
         #if DEBUG
         scheduleUIPreview()
         #endif
@@ -256,8 +265,9 @@ final class GameScene: SKScene, ObservableObject {
         escapeSummary = nil
         runSummary = nil
         hudClock = 0
-        progress = EscapeProgress(turbo: turboEnabled)
+        progress = EscapeProgress(turbo: turboEnabled, cave: cave)
         best = UserDefaults.standard.integer(forKey: progress.recordPrefix + ".height")
+        buildBackdrop()
         backdrop.alpha = 1
         backgroundColor = SKColor(red: 0.055, green: 0.075, blue: 0.16, alpha: 1)
         for child in children where child !== gameCamera && child !== rope.node && child !== aim { child.removeFromParent() }
@@ -290,7 +300,7 @@ final class GameScene: SKScene, ObservableObject {
         coral.removeAllActions()
         addChild(mint)
         addChild(coral)
-        spawner = LedgeSpawner(sceneWidth: size.width)
+        spawner = LedgeSpawner(sceneWidth: size.width, style: cave.platformStyle)
         gameCamera.position = CGPoint(x: size.width / 2, y: size.height / 2)
         current = spawner.startingLedge(y: size.height * 0.34)
         addChild(current)
@@ -688,12 +698,14 @@ final class GameScene: SKScene, ObservableObject {
         }, withKey: "exitRope")
         sound.play(.grab, step: 4)
         UINotificationFeedbackGenerator().notificationOccurred(.success)
-        run(.sequence([.wait(forDuration: 0.6), .run { [weak self] in
+        run(.sequence([.wait(forDuration: 0.55), .run { [weak self] in
+            self?.current.collectDawnheartFragment()
+        }, .wait(forDuration: 0.58), .run { [weak self] in
             guard let self else { return }
             self.rope.render(anchor: self.anchor.ropeAttachment, free: self.jumper.ropeAttachment)
             self.publishHUD()
             self.escapeSummary = EscapeSummary(points: self.points, seconds: self.progress.seconds,
-                longestCombo: self.progress.longestCombo, turbo: self.progress.usedTurbo)
+                longestCombo: self.progress.longestCombo, turbo: self.progress.usedTurbo, cave: self.cave)
         }]), withKey: "escapeCelebration")
     }
 
@@ -719,7 +731,7 @@ final class GameScene: SKScene, ObservableObject {
     }
 
     private func buildBackdrop() {
-        backdrop.configure(size: size)
+        backdrop.configure(size: size, cave: cave)
     }
 
     private func updateTrail(_ elapsed: TimeInterval) {

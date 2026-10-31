@@ -2,11 +2,11 @@
 
 An iPhone and iPad arcade prototype about two climbers connected by an elastic rope. Launch once, steer with tilt, and keep the pair climbing in rhythm.
 
-## Escape and Endless
+## Caves, Escape and Endless
 
-Each run begins as Escape: reach platform 150 to exit the cave. The three chapters are The Depths (0–49), The Climb (50–99), and Daylight Ahead (100–150). At the exit the duo celebrates and the result shows score, active real time, and longest combo. Play Again starts a fresh Escape; Keep Climbing continues the same run as Endless after the resume countdown. Pauses, countdowns and the victory screen do not add to the run timer.
+Choose an expedition from the Cave Map. Each cave is a separate Escape: reach platform 150 to exit it. The Depths is available at first; exiting it permanently unlocks Crystal Cavern. At an exit the duo celebrates and the result offers the next cave, the map, or Endless continuation. Pauses, countdowns and the victory screen do not add to the run timer.
 
-Height, score, combo and fastest Escape records are stored separately for normal and Turbo runs. Once Turbo is used, the remainder of that run stays in the Turbo record category even if the switch is disabled.
+Height, score, combo and fastest Escape records are stored separately for each cave and for normal and Turbo runs. Once Turbo is used, the remainder of that run stays in the Turbo record category even if the switch is disabled.
 
 ## Play
 

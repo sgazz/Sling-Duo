@@ -227,7 +227,11 @@ struct EscapeProgress {
     private(set) var awaitingChoice = false
     private(set) var endless = false
     private(set) var usedTurbo: Bool
-    init(turbo: Bool = false) { usedTurbo = turbo }
+    private let cave: CaveID
+    init(turbo: Bool = false, cave: CaveID = .depths) {
+        usedTurbo = turbo
+        self.cave = cave
+    }
     mutating func markTurbo() { usedTurbo = true }
     mutating func advance(_ dt: TimeInterval) {
         guard !awaitingChoice else { return }
@@ -252,7 +256,7 @@ struct EscapeProgress {
             return "SlingDuo.testRecords." + (usedTurbo ? "turbo" : "normal")
         }
         #endif
-        return "SlingDuo.records." + (usedTurbo ? "turbo" : "normal")
+        return cave.recordPrefix + "." + (usedTurbo ? "turbo" : "normal")
     }
     var stage: String {
         if endless { return "ENDLESS" }
@@ -269,4 +273,5 @@ struct EscapeSummary {
     let seconds: TimeInterval
     let longestCombo: Int
     let turbo: Bool
+    let cave: CaveID
 }

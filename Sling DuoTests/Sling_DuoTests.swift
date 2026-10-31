@@ -36,7 +36,7 @@ struct Sling_DuoTests {
             let ledges = scene.children.compactMap { $0 as? LedgeNode }
             #expect(ledges.count >= 4)
             #expect((ledges.map { $0.position.y }.max() ?? 0) > size.height)
-            #expect(ledges.filter { $0.childNode(withName: "targetMarker") != nil }.count == 1)
+            #expect(ledges.filter { $0.childNode(withName: "targetMarker") != nil }.isEmpty)
             scene.setGameplayPaused(true)
             let positions = ledges.map { $0.position }
             scene.update(1)

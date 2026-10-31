@@ -19,27 +19,35 @@ final class LedgeNode: SKShapeNode {
     private var motionCenter: CGFloat = 0
     private var motionTime: TimeInterval = 0
     private var motionActive = false
-    private let targetRim = SKShapeNode()
+    private var dawnheartFragment: SKSpriteNode?
 
-    init(center: CGPoint, size: CGSize = GameConstants.ledgeSize, isPrecision: Bool = false, artVariant: Int? = nil) {
+    init(center: CGPoint, size: CGSize = GameConstants.ledgeSize, isPrecision: Bool = false,
+         artVariant: Int? = nil, style: PlatformStyle = .depths, usesMovingArtwork: Bool = false) {
         self.size = size
         self.isPrecisionPlatform = isPrecision
         super.init()
         position = center
         zPosition = 8
-        let variants = isPrecision ? PlatformArtwork.precision : PlatformArtwork.normal
+        let variants: [PlatformArtwork]
+        switch style {
+        case .depths: variants = isPrecision ? PlatformArtwork.precision : PlatformArtwork.normal
+        // The luminous rim still distinguishes precision platforms until this
+        // chapter receives its dedicated narrow-platform art set.
+        case .crystal: variants = PlatformArtwork.crystal
+        case .river:
+            variants = usesMovingArtwork ? PlatformArtwork.riverMoving
+                : (isPrecision ? PlatformArtwork.riverPrecision : PlatformArtwork.river)
+        case .ruins: variants = PlatformArtwork.ruins
+        case .volcanic: variants = PlatformArtwork.volcanic
+        case .frozen: variants = PlatformArtwork.frozen
+        case .glowroot: variants = PlatformArtwork.glowroot
+        case .storm: variants = PlatformArtwork.storm
+        case .daybreak: variants = PlatformArtwork.daybreak
+        }
         let index = max(0, min(variants.count - 1, artVariant ?? Int.random(in: 0..<variants.count)))
         let stone = variants[index].makeSprite(width: size.width)
         stone.position.y = size.height / 2
         addChild(stone)
-        let rim = CGMutablePath()
-        rim.move(to: CGPoint(x: -size.width * 0.43, y: size.height / 2 - 1))
-        rim.addLine(to: CGPoint(x: size.width * 0.43, y: size.height / 2 - 1))
-        targetRim.path = rim
-        targetRim.lineCap = .round
-        targetRim.lineWidth = 1.5
-        targetRim.zPosition = 1
-        addChild(targetRim)
         setTarget(false)
     }
 
@@ -48,25 +56,74 @@ final class LedgeNode: SKShapeNode {
     }
 
     func markExit() {
-        let arch = SKShapeNode()
-        let path = CGMutablePath()
-        path.move(to: CGPoint(x: -26, y: 10))
-        path.addLine(to: CGPoint(x: -26, y: 57))
-        path.addArc(center: CGPoint(x: 0, y: 57), radius: 26, startAngle: .pi, endAngle: 0, clockwise: true)
-        path.addLine(to: CGPoint(x: 26, y: 10))
-        arch.path = path
-        arch.name = "escapeExit"
-        arch.strokeColor = .systemYellow
-        arch.lineWidth = 5
-        arch.glowWidth = 5
-        arch.zPosition = -1
-        addChild(arch)
+        let light = SKNode()
+        light.name = "escapeExit"
+        light.zPosition = -2
+        let halo = SKShapeNode(ellipseOf: CGSize(width: 154, height: 110))
+        halo.fillColor = SKColor(red: 1, green: 0.9, blue: 0.56, alpha: 0.12)
+        halo.strokeColor = .clear
+        halo.position.y = 82
+        light.addChild(halo)
+        for (offset, alpha) in [(-56 as CGFloat, 0.13 as CGFloat), (0, 0.18), (56, 0.13)] {
+            let beam = SKShapeNode()
+            let path = CGMutablePath()
+            path.move(to: CGPoint(x: offset - 13, y: 22))
+            path.addLine(to: CGPoint(x: offset + 13, y: 22))
+            path.addLine(to: CGPoint(x: offset + 42, y: 150))
+            path.addLine(to: CGPoint(x: offset - 42, y: 150))
+            path.closeSubpath()
+            beam.path = path
+            beam.fillColor = SKColor(red: 1, green: 0.9, blue: 0.58, alpha: alpha)
+            beam.strokeColor = .clear
+            light.addChild(beam)
+        }
+        let opening = SKShapeNode()
+        let openingPath = CGMutablePath()
+        openingPath.move(to: CGPoint(x: -28, y: 15))
+        openingPath.addLine(to: CGPoint(x: -28, y: 67))
+        openingPath.addArc(center: CGPoint(x: 0, y: 67), radius: 28, startAngle: .pi, endAngle: 0, clockwise: true)
+        openingPath.addLine(to: CGPoint(x: 28, y: 15))
+        opening.path = openingPath
+        opening.strokeColor = SKColor(red: 1, green: 0.9, blue: 0.58, alpha: 0.95)
+        opening.lineWidth = 4
+        opening.glowWidth = 8
+        opening.zPosition = 1
+        light.addChild(opening)
+        addChild(light)
+        let fragment = SKSpriteNode(imageNamed: "DawnheartFragment")
+        fragment.name = "dawnheartFragment"
+        fragment.size = CGSize(width: 50, height: 50)
+        fragment.position = CGPoint(x: 0, y: 100)
+        fragment.zPosition = 4
+        fragment.texture?.filteringMode = .linear
+        addChild(fragment)
+        dawnheartFragment = fragment
+        fragment.run(.repeatForever(.sequence([
+            .moveBy(x: 0, y: 7, duration: 0.85),
+            .moveBy(x: 0, y: -7, duration: 0.85)
+        ])), withKey: "dawnheartHover")
         let label = SKLabelNode(fontNamed: "AvenirNext-Heavy")
-        label.text = "EXIT"
-        label.fontSize = 14
-        label.position.y = 96
-        label.fontColor = .systemYellow
+        label.text = "DAYLIGHT"
+        label.fontSize = 11
+        label.position.y = 143
+        label.fontColor = SKColor(red: 1, green: 0.91, blue: 0.63, alpha: 1)
+        label.horizontalAlignmentMode = .center
+        label.verticalAlignmentMode = .center
+        label.zPosition = 2
         addChild(label)
+    }
+
+    func collectDawnheartFragment() {
+        guard let fragment = dawnheartFragment else { return }
+        dawnheartFragment = nil
+        fragment.removeAction(forKey: "dawnheartHover")
+        let gather = SKAction.group([
+            .move(to: CGPoint(x: 0, y: 48), duration: 0.32),
+            .scale(to: 1.28, duration: 0.32),
+            .rotate(byAngle: .pi * 1.5, duration: 0.32)
+        ])
+        let vanish = SKAction.group([.scale(to: 0.05, duration: 0.18), .fadeOut(withDuration: 0.18)])
+        fragment.run(.sequence([gather, vanish, .removeFromParent()]))
     }
 
     func configureMotion() {
@@ -129,7 +186,6 @@ final class LedgeNode: SKShapeNode {
     func setTarget(_ targeted: Bool) {
         motionActive = targeted && isMovingPlatform
         removeAction(forKey: "targetPulse")
-        childNode(withName: "targetMarker")?.removeFromParent()
         if isMovingPlatform {
             strokeColor = .systemYellow
         } else if isPrecisionPlatform {
@@ -139,26 +195,6 @@ final class LedgeNode: SKShapeNode {
                 ? SKColor(red: 0.39, green: 0.96, blue: 0.8, alpha: 1)
                 : SKColor(red: 0.64, green: 0.74, blue: 0.98, alpha: 1)
         }
-        targetRim.strokeColor = strokeColor
-        targetRim.glowWidth = targeted ? 2 : 0
-        targetRim.alpha = targeted ? 0.9 : (isPrecisionPlatform ? 0.35 : 0)
-        guard targeted else { return }
-        let marker = SKShapeNode()
-        let arrow = CGMutablePath()
-        arrow.move(to: CGPoint(x: -5, y: 5))
-        arrow.addLine(to: .zero)
-        arrow.addLine(to: CGPoint(x: 5, y: 5))
-        marker.path = arrow
-        marker.name = "targetMarker"
-        marker.strokeColor = strokeColor
-        marker.lineWidth = 2.5
-        marker.lineCap = .round
-        marker.position = CGPoint(x: 0, y: size.height / 2 + 43)
-        addChild(marker)
-        marker.run(.repeatForever(.sequence([
-            .moveBy(x: 0, y: -5, duration: 0.5),
-            .moveBy(x: 0, y: 5, duration: 0.5)
-        ])))
     }
 
 }
