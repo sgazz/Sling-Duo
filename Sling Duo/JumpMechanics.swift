@@ -219,6 +219,23 @@ struct ExperimentalTempo {
     mutating func reset() { activeSeconds = 0 }
 }
 
+/// Endless starts only after the player leaves the Exit.  Its pace is driven by
+/// distance climbed rather than wall-clock time, so every additional 24 catches
+/// earns exactly one predictable 10% step.
+struct EndlessTempo {
+    private(set) var extraPlatforms = 0
+
+    var multiplier: Double {
+        1 + Double(min(20, extraPlatforms / 24)) * 0.10
+    }
+
+    mutating func update(height: Int) {
+        extraPlatforms = max(0, height - EscapeProgress.goal)
+    }
+
+    mutating func reset() { extraPlatforms = 0 }
+}
+
 struct EscapeProgress {
     static let goal = 150
     private(set) var seconds: TimeInterval = 0

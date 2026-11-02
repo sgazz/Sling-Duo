@@ -68,6 +68,7 @@ final class GameScene: SKScene, ObservableObject {
         }
     }
     private var tempo = ExperimentalTempo()
+    private var endlessTempo = EndlessTempo()
     private var points = 0
     private var rescueWarningPlayed = false
     private var userPaused = false
@@ -290,6 +291,7 @@ final class GameScene: SKScene, ObservableObject {
         score = 0
         points = 0
         tempo.reset()
+        endlessTempo.reset()
         rewards = CatchRewards()
         updatePointsHUD()
 
@@ -356,7 +358,9 @@ final class GameScene: SKScene, ObservableObject {
         if turboEnabled && (flow.phase != .ready || flow.deadlineActive) {
             tempo.advance(elapsed)
         }
-        let multiplier = turboEnabled ? tempo.multiplier : 1
+        // Turbo and Endless are alternate pacing systems.  Use the faster one,
+        // rather than multiplying them, to preserve the shared 3× safety cap.
+        let multiplier = max(turboEnabled ? tempo.multiplier : 1, endlessTempo.multiplier)
         accumulator += elapsed * multiplier
         let step = 1.0 / 120
         while accumulator >= step {
@@ -395,17 +399,31 @@ final class GameScene: SKScene, ObservableObject {
         state.best = best
         state.newBest = celebratedRecord
         state.endless = progress.endless
-        state.turbo = turboEnabled
-        state.tempo = tempo.multiplier
+        state.turbo = progress.usedTurbo
+        state.turboActive = turboEnabled
+        state.tempo = max(turboEnabled ? tempo.multiplier : 1, endlessTempo.multiplier)
         state.seconds = Int(progress.seconds)
+        state.caveTitle = cave.title
         if flow.isRescuing { state.remaining = ceil(flow.rescueRemaining * 10) / 10 }
         switch flow.phase {
-        case .ready: state.instruction = "Pull a hero to launch"
-        case .aiming: state.instruction = "Release to fly"
-        case .rescue: state.instruction = "Pull to save the duo"
-        case .handoff: state.instruction = "Your partner is up next"
-        case .flying: state.instruction = steeringMode == .tilt ? "Tilt gently to steer" : "Slide left or right to steer"
-        case .over: state.instruction = "Same rope. Another chance."
+        case .ready:
+            state.instruction = "Pull a hero to launch"
+            state.instructionIcon = "hand.draw.fill"
+        case .aiming:
+            state.instruction = "Release to fly"
+            state.instructionIcon = "arrow.up.circle.fill"
+        case .rescue:
+            state.instruction = "Pull to save the duo"
+            state.instructionIcon = "hand.raised.fill"
+        case .handoff:
+            state.instruction = "Your partner is up next"
+            state.instructionIcon = "person.2.fill"
+        case .flying:
+            state.instruction = steeringMode == .tilt ? "Tilt gently to steer" : "Slide left or right to steer"
+            state.instructionIcon = steeringMode == .tilt ? "iphone.gen3" : "arrow.left.and.right"
+        case .over:
+            state.instruction = "Same rope. Another chance."
+            state.instructionIcon = "arrow.counterclockwise"
         }
         if state != hud { hud = state }
     }
@@ -602,6 +620,7 @@ final class GameScene: SKScene, ObservableObject {
         ]), withKey: "landingSquash")
         happyTime = 0.65
         score += 1
+        if progress.endless { endlessTempo.update(height: score) }
         if score > best {
             celebratedRecord = true
             best = score

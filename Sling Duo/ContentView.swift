@@ -26,9 +26,13 @@ struct ContentView: View {
     @State private var countdown: Int?
     @State private var resumeTask: Task<Void, Never>?
 
-    // Temporary while the level package is being play-tested. Flip this to
-    // false when campaign gating is ready for players.
+    // All expedition cards stay open in development for rapid visual testing.
+    // Release builds always use normal campaign progression.
+    #if DEBUG
     private let allCavesUnlockedForTesting = true
+    #else
+    private let allCavesUnlockedForTesting = false
+    #endif
     private var dawnheartFragments: Int { dawnheartFragmentMask.nonzeroBitCount }
 
     var body: some View {
@@ -192,8 +196,10 @@ struct ContentView: View {
                             showingTutorial = true
                         }.accessibilityIdentifier("howToPlay")
                         Spacer()
+                        Button("Cave Map", action: returnToMap).accessibilityIdentifier("leaveToCaveMap")
+                        Spacer()
                         Button("Restart") { scene.restartFromMenu(); resume() }.accessibilityIdentifier("restartGame")
-                    }.font(.subheadline.bold()).foregroundStyle(GamePalette.mint).frame(minHeight: 44)
+                    }.font(.caption.bold()).foregroundStyle(GamePalette.mint).frame(minHeight: 44)
                     ScoringGuide()
                 }
             }
@@ -216,7 +222,8 @@ struct ContentView: View {
                 Button("Enter \(next.title)") {
                     start(next)
                 }.buttonStyle(GameActionStyle()).accessibilityIdentifier("nextCave")
-                Text("A new cave is open. Each expedition has its own records.")
+                Text(allCavesUnlockedForTesting ? "Choose any expedition from the Cave Map while testing."
+                     : "The way to the next cave is now open. Each expedition has its own records.")
                     .font(.caption).foregroundStyle(.white.opacity(0.5)).multilineTextAlignment(.center).padding(.top, -12)
             }
             Button("Keep Climbing") {

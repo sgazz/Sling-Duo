@@ -12,6 +12,7 @@ final class ClimberNode: SKShapeNode {
     }
     private let hero: Hero
     private let artwork = SKSpriteNode()
+    private let artworkOutline = SKSpriteNode()
     private var anchored = false
     private(set) var pose: Pose = .idle
     private var visualTime: TimeInterval = 0
@@ -33,6 +34,15 @@ final class ClimberNode: SKShapeNode {
         zPosition = 20
         artwork.name = "heroArtwork"
         artwork.anchorPoint = CGPoint(x: 0.5, y: 0)
+        artworkOutline.name = "heroReadabilityOutline"
+        artworkOutline.anchorPoint = CGPoint(x: 0.5, y: 0)
+        artworkOutline.zPosition = -1
+        artworkOutline.color = SKColor(red: 0.015, green: 0.025, blue: 0.06, alpha: 1)
+        artworkOutline.colorBlendFactor = 1
+        artworkOutline.alpha = 0.78
+        artworkOutline.xScale = 1.12
+        artworkOutline.yScale = 1.09
+        artwork.addChild(artworkOutline)
         addChild(artwork)
         show(.idle)
     }
@@ -92,6 +102,8 @@ final class ClimberNode: SKShapeNode {
         let scale: CGFloat = hero == .cyan ? 48 / 995 : 46 / 1028
         artwork.texture = texture
         artwork.size = CGSize(width: frame.crop.width * scale, height: frame.crop.height * scale)
+        artworkOutline.texture = texture
+        artworkOutline.size = artwork.size
         beltPoint = CGPoint(x: (frame.pixels.width / 2 - frame.crop.midX) * scale,
                             y: (frame.crop.maxY - frame.beltY) * scale)
         let grounded = next == .idle || next == .anchored || next == .catchPose
