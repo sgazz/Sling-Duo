@@ -2,6 +2,7 @@ from pathlib import Path
 from xml.etree import ElementTree as ET
 from collections import defaultdict
 import csv,json,statistics,sys,bisect
+from datetime import datetime
 
 class Table:
  def __init__(self,path):
@@ -31,13 +32,31 @@ if len(sys.argv)!=5:
  raise SystemExit('Usage: summarize_gpu_trace.py VARIANT XML_PREFIX PHASES_CSV OUTPUT_DIRECTORY')
 
 variant=sys.argv[1];prefix=Path(sys.argv[2]);cpu=Path(sys.argv[3]);out=Path(sys.argv[4]);out.mkdir(exist_ok=True,parents=True)
-gpu=Table(str(prefix)+'-gpu.xml');signposts=Table(str(prefix)+'-signposts.xml')
-phase_durations={r['phase']:float(r['wall_seconds']) for r in csv.DictReader(cpu.open())}
+gpu=Table(str(prefix)+'-gpu.xml')
+cpu_rows=list(csv.DictReader(cpu.open()))
+phase_durations={r['phase']:float(r['wall_seconds']) for r in cpu_rows}
 events={}
-for row in signposts.rows():
- if signposts.label(row[6])!='GraphicsPhase':continue
- phase=signposts.label(row[11])
- if phase.startswith('round0-') and phase in phase_durations:events[(int(signposts.value(row[0])),phase)]=1
+alignment='signposts'
+clock_drift_seconds=0.0
+if cpu_rows and 'phase_start_unix_seconds' in cpu_rows[0]:
+ alignment='CSV UTC phase clock aligned to trace start-date'
+ toc=ET.parse(str(prefix)+'-toc.xml')
+ epoch=datetime.fromisoformat(toc.findtext('.//summary/start-date')).timestamp()
+ origin_unix=float(cpu_rows[0]['phase_start_unix_seconds'])
+ origin_mono=float(cpu_rows[0]['phase_start_monotonic_seconds'])
+ for row in cpu_rows:
+  unix=float(row['phase_start_unix_seconds']);mono=float(row['phase_start_monotonic_seconds'])
+  clock_drift_seconds=max(clock_drift_seconds,abs((unix-origin_unix)-(mono-origin_mono)))
+  if row['phase'].startswith('round0-'):
+   events[(round((unix-epoch)*1e9),row['phase'])]=1
+ if clock_drift_seconds>0.002:
+  raise SystemExit(f'Clock instability exceeds 2ms: {clock_drift_seconds}s')
+else:
+ signposts=Table(str(prefix)+'-signposts.xml')
+ for row in signposts.rows():
+  if signposts.label(row[6])!='GraphicsPhase':continue
+  phase=signposts.label(row[11])
+  if phase.startswith('round0-') and phase in phase_durations:events[(int(signposts.value(row[0])),phase)]=1
 phases=sorted(events)
 if len(phases)!=27:raise SystemExit(f'Expected all 27 first-round phase markers, found {len(phases)}')
 starts=[t for t,p in phases]
@@ -72,5 +91,5 @@ for kind in ['idle','aim','turbo']:
  sample=[v for phase,values in phase_frames.items() if phase.endswith('-'+kind) for v in values]
  selected=[r for r in rows if r['phase'].endswith('-'+kind)]
  summary[kind]=dict(spritekit_gpu_frames=len(sample),median_active_ms=statistics.median(sample),p95_active_ms=percentile(sample,.95),median_app_gpu_active_percent=statistics.median(r['app_gpu_active_percent'] for r in selected))
-result=dict(variant=variant,caves=9,phases=27,app_gpu_event_rows=app_rows,metric='Union of Active SpriteKit GPU execution intervals per frame; CPU-to-GPU wait/latency excluded; compositor filtered by process',phase_summary=summary)
+result=dict(variant=variant,alignment=alignment,clock_drift_seconds=clock_drift_seconds,caves=9,phases=27,app_gpu_event_rows=app_rows,metric='Union of Active SpriteKit GPU execution intervals per frame; CPU-to-GPU wait/latency excluded; compositor filtered by process',phase_summary=summary)
 (out/(variant+'-gpu-summary.json')).write_text(json.dumps(result,indent=2)+'\n');print(json.dumps(result,indent=2))

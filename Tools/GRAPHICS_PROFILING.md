@@ -7,8 +7,7 @@ preserves the ordinary game's data.
     Tools/profile_graphics.sh DEVICE_UDID /absolute/path/to/results
 
 The script builds Release (`-O`, no code coverage) with `GRAPHICS_PROFILE`,
-installs the app and launches its bundle ID through Metal System Trace plus
-Points of Interest. It records 115 seconds with 130-second retention. Signed
+installs the app and launches its bundle ID through Metal System Trace. It records 115 seconds with 130-second retention. Signed
 build products use a temporary directory outside Documents; Finder/iCloud
 metadata in Documents can interfere with signing. Set `SLING_PROFILE_DERIVED_DATA`
 to reuse an existing temporary build directory.
@@ -23,7 +22,9 @@ actual row counts, time spans, target process and cave/phase markers.
 The opt-in harness is excluded from ordinary builds. Two rounds visit all nine
 caves: idle 2s, held aim 2s, 3× Turbo flight 1s, then a release checkpoint. This is
 a transition smoke benchmark, not 150 catches per cave. Routes remain random.
-The profiling scene disables auto-lock while present and restores the idle timer
+Phase rows also record UTC and monotonic start times. The parser aligns UTC with
+the trace start-date and rejects clock disagreement above 2 ms. The profiling
+scene disables auto-lock while present and restores the idle timer
 when removed. The phone must initially be unlocked; no lock/passcode is bypassed.
 
 `graphics-profile.csv` records process user+system CPU time (% of one logical
@@ -33,13 +34,17 @@ are not GPU duration, exact presented FPS or GPU texture residency. Expect 55
 records and at least ten frames in every gameplay phase; the paused final release
 checkpoint can have zero frames. Inspect traces for transition-time peaks.
 
-Export `metal-gpu-intervals` and the PointsOfInterest `os-signpost` tables with
-`xcrun xctrace export --xpath`. Save as `PREFIX-gpu.xml` and
-`PREFIX-signposts.xml`, then summarize the first complete round:
+The script exports `metal-gpu-intervals` to `trace-gpu.xml` and trace metadata to
+`trace-toc.xml`, then summarizes the first complete round:
 
     python3 Tools/summarize_gpu_trace.py baseline PREFIX graphics-profile.csv OUTPUT_DIR
 
-The parser requires all 27 first-round phase markers and sufficient GPU frames
+`PREFIX-toc.xml` and `PREFIX-gpu.xml` must exist. Phase UTC clocks come from CSV;
+old captures without clocks can use a `PREFIX-signposts.xml` fallback. Adding the
+Points of Interest instrument to Metal System Trace stalled preparation on the
+tested setup, so the validated path uses direct CSV clocks instead.
+
+The parser requires all 27 first-round phase timestamps and sufficient GPU frames
 in every phase. It resolves XML references, filters the game process and Active
 GPU work, and computes the union of SpriteKit Vertex/Fragment execution intervals
 per frame. CPU-to-GPU waiting/latency and compositor work are excluded from that

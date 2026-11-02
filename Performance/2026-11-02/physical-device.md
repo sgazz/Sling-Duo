@@ -4,7 +4,7 @@
 
 ## Rezultat
 
-**Procesni footprint tokom igre smanjen je približno za dve trećine, a nakon oslobađanja za oko 79%.** CPU merenja ne pokazuju pouzdano ubrzanje. Uporediva GPU sesija po fazama još nije završena zbog ponovnog zaključavanja uređaja; postojeći GPU podaci su sačuvani sa jasno različitim obuhvatom.
+**Procesni footprint tokom igre smanjen je približno za dve trećine, a nakon oslobađanja za oko 79%.** CPU merenja ne pokazuju pouzdano ubrzanje. GPU poređenje je završeno za svih devet pećina: u ovoj uparenoj sesiji aktivno SpriteKit GPU vreme je približno 12% kraće u aim i 19% kraće u Turbo fazi. To nije dokaz porasta FPS-a.
 
 ## Metod
 
@@ -40,19 +40,25 @@ U prvom paru medijana footprint-a baze raste sa 211,71 MiB u prvom prolasku na 2
 
 Medijana scene callback intervala ostaje približno **16,666 ms** u obe verzije. To nije GPU trajanje ni potvrda presented FPS-a. Nije utvrđen merljiv porast FPS-a. Termalni intervali u produženim Game Performance tragovima označeni su kao **Nominal**; test nije dugotrajna termalna/autonomna studija.
 
-## GPU — sačuvani podaci i ograničenje
+## GPU — kompletno upareno poređenje
 
-Game Performance šablon je na ovom uređaju zadržavao samo GPU rep snimanja, čak i kada je produžen globalni retention prozor. Zbog toga se on ne koristi za poređenje svih pećina.
+Obe verzije snimljene su sa **Metal System Trace**, po 60 sekundi, uz 75-sekundni retention prozor. Analiza koristi prvi kompletan prolazak: **9 pećina × 3 faze = 27 faza po verziji**. Drugi, nepotpun prolazak iz ovih kraćih GPU zapisa nije uključen u poređenje.
 
-Namenski Metal System Trace zabeležio je kontinuiranu baznu sesiju: **3.076 SpriteKit frejmova**, GPU aktivna medijana **1,941 ms**, p95 **2,254 ms**. Obuhvat je približno prvih 60 sekundi, sa prolaskom kroz svih devet pećina. U tom zapisu nisu uključene Points of Interest oznake, pa se GPU rezultat ne razlaže pouzdano na pojedinačne aim/Turbo faze.
+Faze su zabeležene direktno u CSV-u, sa UTC i monotonim satom, pa poravnate sa početkom Instruments traga. Najveće relativno odstupanje satova je 0,778 ms za bazu i 0,768 ms za optimizovanu verziju. Parser je zahtevao svih 27 faza i najmanje deset odgovarajućih GPU frejmova u svakoj. Oba snimka ispunjavaju uslov. Termalno stanje je **Nominal** tokom oba traga.
 
-Optimizovani Game Performance rep ima **289 SpriteKit frejmova**, medijanu **1,671 ms**, p95 **2,014 ms**. To je završni deo scenarija, pretežno Daybreak Exit. **Ove brojke nisu direktno uporedive sa baznim prolaskom kroz sve pećine i iz njih se ne računa GPU dobitak.**
+Analizirano je **2.558 baznih i 2.633 optimizovana SpriteKit frejma** iz tih faza.
 
-GPU metrika predstavlja uniju aktivnih Vertex/Fragment intervala za SpriteKit render komande po frejmu. CPU-to-GPU čekanje nije uračunato u aktivni GPU rad. Proces `backboardd` i drugi compositor događaji su isključeni; rezultat nije ukupna zauzetost GPU-a celog uređaja.
+| Faza | GPU aktivna medijana, baza | Optimizovano | Promena | GPU p95, baza → optimizovano |
+|---|---:|---:|---:|---:|
+| Idle | 1,923 ms | 1,681 ms | −12,6% | 2,215 → 1,975 ms |
+| Aim | 1,994 ms | 1,758 ms | −11,8% | 2,280 → 2,025 ms |
+| Turbo | 2,110 ms | 1,707 ms | −19,1% | 2,458 → 2,035 ms |
 
-U optimizovanom repu dodatno je izmereno oko **53,91 MiB `MTLDevice.currentAllocatedSize`**, zatim **31,19 MiB nakon oslobađanja**. To je Metal alokaciona metrika, drugačija od procesnog footprint-a. Baza nema uporediv kompletan uzorak tog broja u istom tragu, pa se ne navodi procentualna GPU-memory ušteda.
+Metrika je unija aktivnih Vertex/Fragment intervala SpriteKit render komandi po frejmu. Istovremeni intervali se ne broje dvaput. CPU-to-GPU čekanje, compositor (`backboardd`) i drugi procesi su isključeni. To nije ukupna zauzetost GPU-a celog telefona niti ukupno trajanje prikaza frejma sa SwiftUI interfejsom.
 
-Pokušaj uparenog kontinuiranog GPU testa sa Points of Interest oznakama prekinut je zato što se telefon ponovo zaključao. Ta proba nije korišćena kao rezultat. Profil build sada održava ekran uključenim, uz reset tog stanja pri uklanjanju scene; obični buildovi nemaju tu izmenu. Za dovršetak su spremne obe potpisane verzije i fazni GPU parser.
+Ovo je jedno upareno GPU snimanje sa proceduralnim rutama. Rezultat pokazuje smanjen GPU rad u ovoj sesiji, ali ne izdvaja doprinos manjih tekstura, uklonjenih markera i preloada. GPU frekvencija nije fiksirana, a dugotrajno zagrevanje i rad na drugim uređajima nisu obuhvaćeni. Za garantovane procente dobitka potrebni su dodatni ponovljeni, deterministički scenariji.
+
+Prethodni Game Performance rep i zaključane/zaglavljene probe nisu korišćeni za ovo poređenje. Metal System Trace je obezbedio kontinuirane događaje; direktni CSV satovi zamenili su dodatni instrument za oznake koji je blokirao pripremu snimanja. Profil aplikacija održava ekran uključenim tokom snimanja i završila je rad nakon testa. Obični buildovi nemaju ovo ponašanje.
 
 ## Sačuvani fajlovi
 
@@ -60,6 +66,9 @@ Pokušaj uparenog kontinuiranog GPU testa sa Points of Interest oznakama prekinu
 - `physical-baseline-repeat.csv`, `physical-optimized-repeat.csv`: ponovljeni fizički par.
 - `physical-cpu-memory-summary.csv`: objedinjene medijane.
 - `physical-profiling-status.json`: poreklo i status merenja.
-- `physical-gpu-traces.zip`: validan kontinuirani bazni GPU trag i ograničeni optimizovani rep, uz opis obuhvata. Ne sadrži nevalidnu zaključanu probu.
+- `baseline-gpu-by-phase.csv`, `optimized-gpu-by-phase.csv`: rezultati svih 27 faza po verziji.
+- `baseline-gpu-summary.json`, `optimized-gpu-summary.json`: agregati i validacija satova.
+- `gpu-baseline-phases.csv`, `gpu-optimized-phases.csv`: izvorni fazni satovi GPU sesija.
+- `physical-gpu-traces.zip`: oba uporediva sirova Metal traga, fazni CSV-i i GPU sažeci; sačuvano lokalno uz ovaj izveštaj, van Git repozitorijuma. Nevalidne probe nisu uključene.
 
-Za konačno GPU poređenje: Metal System Trace + Points of Interest, isti prvi prolazak kroz svih devet pećina za obe verzije, filtriranje na proces igre i validacija najmanje 27 faznih oznaka. Alat `Tools/profile_graphics.sh` i parser pripremljeni su za to snimanje nakon otključavanja.
+Ponovljiv postupak je u `Tools/profile_graphics.sh`, uz `Tools/prepare_graphics_baseline.py` i `Tools/summarize_gpu_trace.py`. Podaci na grani sadrže app-specific CSV/JSON sažetke; veliki sirovi tragovi čuvaju se u lokalnom ZIP-u.

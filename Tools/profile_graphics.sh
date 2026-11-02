@@ -20,7 +20,7 @@ xcrun devicectl device install app --device "$device_id" \
   "$derived_dir/Build/Products/Release-iphoneos/Sling Duo.app" > "$result_dir/install.log" 2>&1
 # Launch by bundle ID: the production and profiling apps share a display name.
 # xctrace prepares its instruments before launching the measured process.
-xcrun xctrace record --template 'Metal System Trace' --instrument 'Points of Interest' --device "$device_id" \
+xcrun xctrace record --template 'Metal System Trace' --device "$device_id" \
   --window 130s --time-limit 115s --output "$result_dir/metal-system.trace" \
   --launch -- "$bundle_id" > "$result_dir/instruments.log" 2>&1
 xcrun devicectl device copy from --device "$device_id" \
@@ -37,4 +37,9 @@ if any(int(row['frames']) < 10 for row in rows[:-1]):
 PYVALIDATE
 xcrun xctrace export --input "$result_dir/metal-system.trace" --toc \
   --output "$result_dir/trace-toc.xml"
-echo "Saved trace and CPU/footprint/frame samples in $result_dir"
+xcrun xctrace export --input "$result_dir/metal-system.trace" \
+  --xpath '/trace-toc/run[@number="1"]/data/table[@schema="metal-gpu-intervals"]' \
+  --output "$result_dir/trace-gpu.xml"
+python3 "$repo_dir/Tools/summarize_gpu_trace.py" "${SLING_PROFILE_VARIANT:-measured}" \
+  "$result_dir/trace" "$result_dir/graphics-profile.csv" "$result_dir"
+echo "Saved validated GPU phase summaries, trace and CPU/footprint samples in $result_dir"

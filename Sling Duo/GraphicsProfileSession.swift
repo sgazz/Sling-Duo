@@ -10,11 +10,12 @@ final class GraphicsProfileSession {
     private let log = OSLog(subsystem: "Gazza.SlingDuo.GraphicsProfile", category: .pointsOfInterest)
     private var phase = ""
     private var start = CACurrentMediaTime()
+    private var phaseUnixStart = 0.0
     private var cpuStart = 0.0
     private var frames: [Double] = []
     private var previousFrame: Double?
     private var maximumFootprint: UInt64 = 0
-    private var rows = ["phase,wall_seconds,cpu_percent_one_core,footprint_mib,peak_sampled_footprint_mib,frames,median_frame_ms,p95_frame_ms,app_owned_texture_count"]
+    private var rows = ["phase,wall_seconds,cpu_percent_one_core,footprint_mib,peak_sampled_footprint_mib,frames,median_frame_ms,p95_frame_ms,app_owned_texture_count,phase_start_unix_seconds,phase_start_monotonic_seconds"]
 
     func frame(_ time: TimeInterval) {
         guard !phase.isEmpty else { return }
@@ -26,6 +27,7 @@ final class GraphicsProfileSession {
     func begin(_ phase: String) {
         self.phase = phase
         start = CACurrentMediaTime()
+        phaseUnixStart = Date().timeIntervalSince1970
         cpuStart = Self.cpuSeconds()
         previousFrame = nil
         frames.removeAll(keepingCapacity: true)
@@ -42,9 +44,9 @@ final class GraphicsProfileSession {
         }
         let footprint = Self.footprint()
         let cpu = (Self.cpuSeconds() - cpuStart) / max(0.001, wall) * 100
-        rows.append(String(format: "%@,%.3f,%.2f,%.3f,%.3f,%d,%.3f,%.3f,%d", phase, wall, cpu,
+        rows.append(String(format: "%@,%.3f,%.2f,%.3f,%.3f,%d,%.3f,%.3f,%d,%.6f,%.6f", phase, wall, cpu,
                            Double(footprint) / 1048576, Double(max(maximumFootprint, footprint)) / 1048576,
-                           frames.count, percentile(0.5), percentile(0.95), textureCount))
+                           frames.count, percentile(0.5), percentile(0.95), textureCount, phaseUnixStart, start))
         phase = ""
         let url = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("graphics-profile.csv")

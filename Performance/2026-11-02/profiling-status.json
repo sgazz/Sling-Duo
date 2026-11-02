@@ -8,9 +8,12 @@
     "physical_cpu_memory_measured": true,
     "physical_csv_runs": 4,
     "phases_per_run": 55,
-    "gpu_status": "Baseline continuous Metal trace: 3076 SpriteKit frames; optimized Game Performance tail: 289 frames. Workloads differ; no comparative GPU claim. Matched tagged GPU rerun blocked by device relock.",
-    "device_status": "Relocked; keep-awake profiling builds compiled and baseline installed; awaiting unlock",
-    "simulator_results": "Previously saved separately; not used for physical conclusions"
+    "gpu_status": "Complete: matched continuous GPU capture, first round across all nine caves and all 27 phases per variant",
+    "device_status": "Measurement complete; profiling process already terminated after capture",
+    "simulator_results": "Previously saved separately; not used for physical conclusions",
+    "physical_gpu_measured": true,
+    "gpu_caves_per_variant": 9,
+    "gpu_phases_per_variant": 27
   },
   "previous_simulator_only_run": {
     "environment": "iPhone 17 Simulator, iOS 27.0, Mac mini M4 host; NOT physical-device results",

@@ -63,4 +63,4 @@ See `ArtSources/README.md` for export sizes and pivot preservation, and
 `GRAPHICS_PROFILE` flag is opt-in and excluded from ordinary builds. Saved validation
 and simulator-only measurements are in `Performance/2026-11-02/`; physical-device
 CPU/memory paired results are saved in `Performance/2026-11-02/physical-device.md`.
-Matched phase-tagged GPU capture awaits another device unlock.
+Matched GPU results cover all nine caves and all 27 first-round phases per version.

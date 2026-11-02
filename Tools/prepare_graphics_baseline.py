@@ -52,4 +52,5 @@ s = s[:a] + '''        #if GRAPHICS_PROFILE
 p.write_text(s)
 (destination / 'Tools').mkdir()
 (destination / 'Tools' / 'profile_graphics.sh').write_bytes((repo / 'Tools' / 'profile_graphics.sh').read_bytes())
+(destination / 'Tools' / 'summarize_gpu_trace.py').write_bytes((repo / 'Tools' / 'summarize_gpu_trace.py').read_bytes())
 print(f'Baseline 2a73bfe with measurement-only hooks saved at {destination}')

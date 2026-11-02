@@ -1,0 +1,29 @@
+{
+  "variant": "optimized",
+  "alignment": "CSV UTC phase clock aligned to trace start-date",
+  "clock_drift_seconds": 0.0007678722031414509,
+  "caves": 9,
+  "phases": 27,
+  "app_gpu_event_rows": 6356,
+  "metric": "Union of Active SpriteKit GPU execution intervals per frame; CPU-to-GPU wait/latency excluded; compositor filtered by process",
+  "phase_summary": {
+    "idle": {
+      "spritekit_gpu_frames": 1101,
+      "median_active_ms": 1.681126,
+      "p95_active_ms": 1.97475,
+      "median_app_gpu_active_percent": 9.8714
+    },
+    "aim": {
+      "spritekit_gpu_frames": 1051,
+      "median_active_ms": 1.75775,
+      "p95_active_ms": 2.024959,
+      "median_app_gpu_active_percent": 10.0352
+    },
+    "turbo": {
+      "spritekit_gpu_frames": 481,
+      "median_active_ms": 1.707459,
+      "p95_active_ms": 2.034625,
+      "median_app_gpu_active_percent": 9.0968
+    }
+  }
+}
