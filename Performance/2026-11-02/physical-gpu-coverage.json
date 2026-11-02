@@ -1,0 +1,22 @@
+{
+  "matched_pair_complete": false,
+  "baseline": {
+    "template": "Metal System Trace",
+    "duration_seconds": 60,
+    "scope": "continuous capture across first round of caves; phase markers not recorded",
+    "spritekit_frames": 3076,
+    "spritekit_gpu_active_median_ms": 1.940708,
+    "spritekit_gpu_active_p95_ms": 2.254375
+  },
+  "optimized": {
+    "template": "Game Performance",
+    "scope": "tail only, mainly final cave; not workload-matched",
+    "spritekit_frames": 289,
+    "spritekit_gpu_active_median_ms": 1.670792,
+    "spritekit_gpu_active_p95_ms": 2.014125,
+    "metal_current_allocated_mib_tail": 53.91,
+    "metal_current_allocated_mib_after_release": 31.19
+  },
+  "comparison": "Do not calculate percentage gains: coverage differs",
+  "method": "Union of Active Vertex/Fragment intervals per SpriteKit frame, filtered to the app; CPU wait/latency and compositor excluded"
+}

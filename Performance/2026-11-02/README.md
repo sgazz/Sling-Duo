@@ -1,3 +1,17 @@
+# Ažuriranje: fizički Release rezultati
+
+CPU i memorija su sada izmereni na iPhone 11 u dva para snimanja. Footprint tokom
+igre je približno za dve trećine manji; posle oslobađanja baza zadržava 225–242 MiB,
+a optimizovana verzija 48–51 MiB. CPU ubrzanje nije dosledno između ponavljanja.
+
+Kompletan metod i granice GPU pokrića su u [physical-device.md](physical-device.md).
+Uporediv označeni GPU par još čeka ponovno otključavanje telefona. Raw tragovi su
+sačuvani lokalno, a ovde su app-specific CSV rezultati.
+
+---
+
+## Prethodni izveštaj implementacije i simulator provera
+
 # Sling Duo — teksture i životni ciklus resursa
 
 Datum: 2. novembar 2026. Radna grana: `codex/rope-rendering-platform-markers`.
@@ -38,7 +52,7 @@ Jedna ranija nesaglasnost je namerno sačuvana radi identičnog pivota/prikaza: 
 
 ## Merenje performansi — fizički uređaj još blokiran
 
-Bazna CPU/GPU/memory sesija na fizičkom uređaju **nije izmerena**. iPhone 11 je uparen i dostupan za instalaciju preko mreže, ali je zaključan. Instalirana je odvojena profil aplikacija `Gazza.SlingDuo.GraphicsProfile`; postojeća igra i njeni podaci nisu menjani. Pokretanje je odbijeno sa razlogom Locked, a Instruments je istekao čekajući spreman uređaj. Dokazi su sačuvani u dva `physical-device-…attempt.log` fajla.
+U trenutku prethodnog izveštaja fizička sesija nije bila izmerena; CPU/memory rezultati iznad sada zamenjuju taj status. iPhone 11 je uparen i dostupan za instalaciju preko mreže, ali je zaključan. Instalirana je odvojena profil aplikacija `Gazza.SlingDuo.GraphicsProfile`; postojeća igra i njeni podaci nisu menjani. Pokretanje je odbijeno sa razlogom Locked, a Instruments je istekao čekajući spreman uređaj. Dokazi su sačuvani u dva `physical-device-…attempt.log` fajla.
 
 Za nastavak su potrebni otključan telefon, uključen ekran i dostupna Instruments veza (USB preporučen). U repozitorijumu su `Tools/profile_graphics.sh`, `Tools/prepare_graphics_baseline.py` i `Tools/GRAPHICS_PROFILING.md`: isti opt-in scenario radi na sačuvanoj osnovi `2a73bfe` i novoj verziji, sa posebnim bundle ID-jem. Profil kod je isključen iz običnih Debug i Release buildova.
 

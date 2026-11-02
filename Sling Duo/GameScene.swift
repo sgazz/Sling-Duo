@@ -154,6 +154,9 @@ final class GameScene: SKScene, ObservableObject {
     #endif
 
     override func willMove(from view: SKView) {
+        #if GRAPHICS_PROFILE
+        UIApplication.shared.isIdleTimerDisabled = false
+        #endif
         sound.suspend()
         motion.stopDeviceMotionUpdates()
     }
@@ -849,6 +852,9 @@ final class GameScene: SKScene, ObservableObject {
 #if GRAPHICS_PROFILE
 extension GameScene {
     private func startGraphicsProfile() {
+        // Automated captures have no touches; prevent auto-lock while this
+        // opt-in profiling app remains in the foreground.
+        UIApplication.shared.isIdleTimerDisabled = true
         let session = GraphicsProfileSession()
         graphicsProfileSession = session
         Task { @MainActor in

@@ -7,7 +7,9 @@ device_id="${1:?Provide physical device UDID}"
 result_dir="${2:?Provide output directory}"
 mkdir -p "$result_dir"
 result_dir="$(cd "$result_dir" && pwd)"
-derived_dir="$result_dir/build"
+# Keep signed build products out of Documents/iCloud metadata propagation.
+derived_dir="${SLING_PROFILE_DERIVED_DATA:-$(mktemp -d /private/tmp/sling-graphics-build.XXXXXX)}"
+printf '%s\n' "$derived_dir" > "$result_dir/build-directory.txt"
 bundle_id=Gazza.SlingDuo.GraphicsProfile
 xcodebuild -project "$repo_dir/Sling Duo.xcodeproj" -scheme 'Sling Duo' \
   -configuration Release -destination 'generic/platform=iOS' \
@@ -16,31 +18,23 @@ xcodebuild -project "$repo_dir/Sling Duo.xcodeproj" -scheme 'Sling Duo' \
   CLANG_ENABLE_CODE_COVERAGE=NO build > "$result_dir/build.log" 2>&1
 xcrun devicectl device install app --device "$device_id" \
   "$derived_dir/Build/Products/Release-iphoneos/Sling Duo.app" > "$result_dir/install.log" 2>&1
-# Recording starts before app launch, preserving startup/upload spikes.
-xcrun xctrace record --template 'Game Performance' --device "$device_id" \
-  --all-processes --time-limit 110s --output "$result_dir/game-performance.trace" \
-  > "$result_dir/instruments.log" 2>&1 &
-trace_pid=$!
-trap 'kill -INT "$trace_pid" 2>/dev/null || true' EXIT
-for attempt in {1..30}; do
-  if grep -qi 'recording started' "$result_dir/instruments.log"; then break; fi
-  if ! kill -0 "$trace_pid" 2>/dev/null; then
-    cat "$result_dir/instruments.log"
-    exit 1
-  fi
-  sleep 1
-done
-if ! grep -qi 'recording started' "$result_dir/instruments.log"; then
-  echo 'Instruments could not start; check device unlock, cable and trust status.' >&2
-  exit 1
-fi
-xcrun devicectl device process launch --device "$device_id" --terminate-existing "$bundle_id" \
-  > "$result_dir/launch.log" 2>&1
-wait "$trace_pid"
-trap - EXIT
+# Launch by bundle ID: the production and profiling apps share a display name.
+# xctrace prepares its instruments before launching the measured process.
+xcrun xctrace record --template 'Metal System Trace' --instrument 'Points of Interest' --device "$device_id" \
+  --window 130s --time-limit 115s --output "$result_dir/metal-system.trace" \
+  --launch -- "$bundle_id" > "$result_dir/instruments.log" 2>&1
 xcrun devicectl device copy from --device "$device_id" \
   --domain-type appDataContainer --domain-identifier "$bundle_id" \
   --source Documents/graphics-profile.csv --destination "$result_dir/graphics-profile.csv"
-xcrun xctrace export --input "$result_dir/game-performance.trace" --toc \
+python3 - "$result_dir/graphics-profile.csv" <<'PYVALIDATE'
+import csv
+import sys
+rows = list(csv.DictReader(open(sys.argv[1])))
+if len(rows) != 55 or rows[-1]['phase'] != 'released':
+    raise SystemExit('Incomplete profile: expected two rounds and final release checkpoint')
+if any(int(row['frames']) < 10 for row in rows[:-1]):
+    raise SystemExit('Invalid profile: at least one phase did not render enough frames')
+PYVALIDATE
+xcrun xctrace export --input "$result_dir/metal-system.trace" --toc \
   --output "$result_dir/trace-toc.xml"
 echo "Saved trace and CPU/footprint/frame samples in $result_dir"

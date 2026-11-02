@@ -26,6 +26,7 @@ s = s.replace('        reset()\n        #if DEBUG', '''        reset()
         startGraphicsProfile()
         #endif
         #if DEBUG''', 1)
+s = s.replace('    override func willMove(from view: SKView) {\n        sound.suspend()', '    override func willMove(from view: SKView) {\n        #if GRAPHICS_PROFILE\n        UIApplication.shared.isIdleTimerDisabled = false\n        #endif\n        sound.suspend()')
 s = s.replace('    override func update(_ currentTime: TimeInterval) {', '''    override func update(_ currentTime: TimeInterval) {
         #if GRAPHICS_PROFILE
         graphicsProfileSession?.frame(currentTime)
