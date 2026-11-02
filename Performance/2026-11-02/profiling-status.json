@@ -1,0 +1,10 @@
+{
+  "environment": "iPhone 17 Simulator, iOS 27.0, Mac mini M4 host; NOT physical-device results",
+  "phase_count": 55,
+  "rounds": 2,
+  "caves_per_round": 9,
+  "gpu_measured": false,
+  "physical_device_status": "Blocked: iPhone 11 locked; Instruments timed out waiting for device; app launch rejected because device could not be unlocked",
+  "texture_count_after_release": 0,
+  "footprint_mib_after_release": 25.862
+}

@@ -109,7 +109,12 @@ final class Sling_DuoUITests: XCTestCase {
         let again = app.buttons["playAgain"]
         XCTAssertTrue(again.waitForExistence(timeout: 10))
         again.tap()
-        XCTAssertTrue(app.staticTexts["resumeCountdown"].waitForExistence(timeout: 2))
+        // The victory action opens Cave Map; selecting a cave then preloads it
+        // and starts a fresh run through the standard resume countdown.
+        let depths = app.buttons["cave.depths"]
+        XCTAssertTrue(depths.waitForExistence(timeout: 3))
+        depths.tap()
+        XCTAssertTrue(app.staticTexts["resumeCountdown"].waitForExistence(timeout: 5))
         expectation(for: gone, evaluatedWith: app.staticTexts["resumeCountdown"])
         waitForExpectations(timeout: 5)
         XCTAssertFalse(again.exists)

@@ -16,16 +16,15 @@ final class LedgeNode: SKShapeNode {
         badge.position.y = -24
         addChild(badge)
     }
-    private var targetMarker: SKShapeNode?
-    private var targeted = false
-    private let platformBadge = SKLabelNode(fontNamed: "AvenirNext-Bold")
     private var motionCenter: CGFloat = 0
     private var motionTime: TimeInterval = 0
     private var motionActive = false
     private var dawnheartFragment: SKSpriteNode?
+    private let textures: GameTextureStore
 
     init(center: CGPoint, size: CGSize = GameConstants.ledgeSize, isPrecision: Bool = false,
-         artVariant: Int? = nil, style: PlatformStyle = .depths, usesMovingArtwork: Bool = false) {
+         artVariant: Int? = nil, style: PlatformStyle = .depths, usesMovingArtwork: Bool = false, textures: GameTextureStore = GameTextureStore()) {
+        self.textures = textures
         self.size = size
         self.isPrecisionPlatform = isPrecision
         super.init()
@@ -34,7 +33,6 @@ final class LedgeNode: SKShapeNode {
         let variants: [PlatformArtwork]
         switch style {
         case .depths: variants = isPrecision ? PlatformArtwork.precision : PlatformArtwork.normal
-        // Precision badges distinguish narrow platforms across every biome.
         case .crystal: variants = PlatformArtwork.crystal
         case .river:
             variants = usesMovingArtwork ? PlatformArtwork.riverMoving
@@ -47,16 +45,9 @@ final class LedgeNode: SKShapeNode {
         case .daybreak: variants = PlatformArtwork.daybreak
         }
         let index = max(0, min(variants.count - 1, artVariant ?? Int.random(in: 0..<variants.count)))
-        let stone = variants[index].makeSprite(width: size.width)
+        let stone = variants[index].makeSprite(width: size.width, textures: textures)
         stone.position.y = size.height / 2
         addChild(stone)
-        platformBadge.name = "platformTypeMarker"
-        platformBadge.fontSize = 11
-        platformBadge.verticalAlignmentMode = .center
-        platformBadge.position.y = -22
-        platformBadge.zPosition = 2
-        addChild(platformBadge)
-        setTarget(false)
     }
 
     required init?(coder aDecoder: NSCoder) {
@@ -98,7 +89,7 @@ final class LedgeNode: SKShapeNode {
         opening.zPosition = 1
         light.addChild(opening)
         addChild(light)
-        let fragment = SKSpriteNode(imageNamed: "DawnheartFragment")
+        let fragment = SKSpriteNode(texture: textures.texture(named: "DawnheartFragment"))
         fragment.name = "dawnheartFragment"
         fragment.size = CGSize(width: 50, height: 50)
         fragment.position = CGPoint(x: 0, y: 100)
@@ -137,7 +128,6 @@ final class LedgeNode: SKShapeNode {
     func configureMotion() {
         isMovingPlatform = true
         motionCenter = position.x
-        setTarget(targeted)
     }
 
     func advanceMotion(_ dt: TimeInterval) {
@@ -185,44 +175,9 @@ final class LedgeNode: SKShapeNode {
         return start + movement * entry
     }
 
+    // Targeting controls motion only; platform artwork carries no overlay markers.
     func setTarget(_ targeted: Bool) {
-        self.targeted = targeted
         motionActive = targeted && isMovingPlatform
-        let accent: SKColor = isMovingPlatform ? .systemYellow
-            : (isPrecisionPlatform ? SKColor(red: 1, green: 0.78, blue: 0.42, alpha: 1)
-               : SKColor(red: 0.39, green: 0.96, blue: 0.8, alpha: 1))
-
-        // Persistent type cues use different symbols as well as color.
-        platformBadge.text = isMovingPlatform ? "↔ 2×" : (isPrecisionPlatform ? "◆" : nil)
-        platformBadge.fontColor = accent
-        platformBadge.isHidden = !isMovingPlatform && !isPrecisionPlatform
-
-        guard targeted else {
-            targetMarker?.removeFromParent()
-            targetMarker = nil
-            return
-        }
-        if targetMarker == nil {
-            let marker = SKShapeNode()
-            marker.name = "targetMarker"
-            marker.zPosition = 1
-            marker.lineWidth = 2.5
-            marker.lineCap = .round
-            marker.lineJoin = .round
-            marker.glowWidth = 1
-            // Mark the landing surface, not the transparent artwork bounds.
-            let halfWidth = size.width / 2 - 4
-            let y = size.height / 2 + 2
-            let path = CGMutablePath()
-            path.move(to: CGPoint(x: -halfWidth, y: y + 5))
-            path.addLine(to: CGPoint(x: -halfWidth, y: y))
-            path.addLine(to: CGPoint(x: halfWidth, y: y))
-            path.addLine(to: CGPoint(x: halfWidth, y: y + 5))
-            marker.path = path
-            addChild(marker)
-            targetMarker = marker
-        }
-        targetMarker?.strokeColor = accent
     }
 
 }

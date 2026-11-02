@@ -9,6 +9,7 @@ final class CaveBackdrop: SKNode {
         let repeatsVertically: Bool
     }
     private var layers: [Layer] = []
+    private let textures: GameTextureStore
 
     func configure(size: CGSize, cave: CaveID = .depths) {
         removeAllChildren()
@@ -35,8 +36,8 @@ final class CaveBackdrop: SKNode {
         }
         if cave == .glowrootGrotto {
             let h = size.height * 1.34
-            addLayer(texture: SKTexture(imageNamed: "GlowrootGrottoBaseTile"), size: size, height: h, width: size.width, speed: 0.024, alpha: 1, tint: 0, mirrorsVertically: false)
-            addLayer(texture: SKTexture(imageNamed: "GlowrootGrottoBankOverlay"), size: size, height: h, width: size.width, speed: 0.14, alpha: 0.88, tint: 0, mirrorsVertically: false)
+            addLayer(texture: textures.texture(named: "GlowrootGrottoBaseTile"), size: size, height: h, width: size.width, speed: 0.024, alpha: 1, tint: 0, mirrorsVertically: false)
+            addLayer(texture: textures.texture(named: "GlowrootGrottoBankOverlay"), size: size, height: h, width: size.width, speed: 0.14, alpha: 0.88, tint: 0, mirrorsVertically: false)
             addGlowrootDecorations(size: size, cellHeight: h)
             return
         }
@@ -48,14 +49,14 @@ final class CaveBackdrop: SKNode {
             configureDaybreakLayers(size: size)
             return
         }
-        addLayer(texture: SKTexture(imageNamed: "CaveFar"), size: size,
+        addLayer(texture: textures.texture(named: "CaveFar"), size: size,
                  height: size.height * 1.3, width: size.height * 1.3 * 2 / 3,
                  speed: 0.035, alpha: 0.8, tint: 0.25)
-        addLayer(texture: SKTexture(imageNamed: "CaveMid"), size: size,
+        addLayer(texture: textures.texture(named: "CaveMid"), size: size,
                  height: size.height * 1.45, width: size.height * 1.45 * 2 / 3,
                  speed: 0.09, alpha: 0.28, tint: 0.4)
         let foreground = SKTexture(rect: CGRect(x: 0, y: 0.18, width: 1, height: 0.64),
-                                   in: SKTexture(imageNamed: "CaveForeground"))
+                                   in: textures.texture(named: "CaveForeground"))
         addLayer(texture: foreground, size: size,
                  height: size.height * 1.12, width: size.width,
                  speed: 0.18, alpha: 0.85, tint: 0.15)
@@ -66,10 +67,10 @@ final class CaveBackdrop: SKNode {
     /// visible seam when the player climbs beyond its original frame.
     private func configureRiverLayers(size: CGSize) {
         let cellHeight = size.height * 1.34
-        addLayer(texture: SKTexture(imageNamed: "RiverWaterTile"), size: size,
+        addLayer(texture: textures.texture(named: "RiverWaterTile"), size: size,
                  height: cellHeight, width: size.width,
                  speed: 0.028, alpha: 1, tint: 0, mirrorsVertically: false)
-        addLayer(texture: SKTexture(imageNamed: "RiverBankOverlay"), size: size,
+        addLayer(texture: textures.texture(named: "RiverBankOverlay"), size: size,
                  height: cellHeight, width: size.width,
                  speed: 0.145, alpha: 0.88, tint: 0, mirrorsVertically: false)
         // Props sit in front of the banks, otherwise the darker edge artwork
@@ -79,10 +80,10 @@ final class CaveBackdrop: SKNode {
 
     private func configureCrystalLayers(size: CGSize) {
         let cellHeight = size.height * 1.34
-        addLayer(texture: SKTexture(imageNamed: "CrystalCavernBaseTile"), size: size,
+        addLayer(texture: textures.texture(named: "CrystalCavernBaseTile"), size: size,
                  height: cellHeight, width: size.width,
                  speed: 0.024, alpha: 1, tint: 0, mirrorsVertically: false)
-        addLayer(texture: SKTexture(imageNamed: "CrystalCavernBankOverlay"), size: size,
+        addLayer(texture: textures.texture(named: "CrystalCavernBankOverlay"), size: size,
                  height: cellHeight, width: size.width,
                  speed: 0.135, alpha: 0.88, tint: 0, mirrorsVertically: false)
         addCrystalDecorations(size: size, cellHeight: cellHeight)
@@ -90,30 +91,30 @@ final class CaveBackdrop: SKNode {
 
     private func configureRuinsLayers(size: CGSize) {
         let cellHeight = size.height * 1.34
-        addLayer(texture: SKTexture(imageNamed: "AncientRuinsBaseTile"), size: size,
+        addLayer(texture: textures.texture(named: "AncientRuinsBaseTile"), size: size,
                  height: cellHeight, width: size.width, speed: 0.025, alpha: 1, tint: 0, mirrorsVertically: false)
-        addLayer(texture: SKTexture(imageNamed: "AncientRuinsBankOverlay"), size: size,
+        addLayer(texture: textures.texture(named: "AncientRuinsBankOverlay"), size: size,
                  height: cellHeight, width: size.width, speed: 0.14, alpha: 0.88, tint: 0, mirrorsVertically: false)
         addRuinsDecorations(size: size, cellHeight: cellHeight)
     }
 
     private func configureVolcanicLayers(size: CGSize) {
         let cellHeight = size.height * 1.34
-        addLayer(texture: SKTexture(imageNamed: "VolcanicPassageBaseTile"), size: size, height: cellHeight, width: size.width, speed: 0.024, alpha: 1, tint: 0, mirrorsVertically: false)
-        addLayer(texture: SKTexture(imageNamed: "VolcanicPassageBankOverlay"), size: size, height: cellHeight, width: size.width, speed: 0.145, alpha: 0.9, tint: 0, mirrorsVertically: false)
+        addLayer(texture: textures.texture(named: "VolcanicPassageBaseTile"), size: size, height: cellHeight, width: size.width, speed: 0.024, alpha: 1, tint: 0, mirrorsVertically: false)
+        addLayer(texture: textures.texture(named: "VolcanicPassageBankOverlay"), size: size, height: cellHeight, width: size.width, speed: 0.145, alpha: 0.9, tint: 0, mirrorsVertically: false)
         addVolcanicDecorations(size: size, cellHeight: cellHeight)
     }
 
     private func configureFrozenLayers(size: CGSize) {
         let h = size.height * 1.34
-        addLayer(texture: SKTexture(imageNamed: "FrozenRiftBaseTile"), size: size, height: h, width: size.width, speed: 0.024, alpha: 1, tint: 0, mirrorsVertically: false)
-        addLayer(texture: SKTexture(imageNamed: "FrozenRiftBankOverlay"), size: size, height: h, width: size.width, speed: 0.14, alpha: 0.88, tint: 0, mirrorsVertically: false)
+        addLayer(texture: textures.texture(named: "FrozenRiftBaseTile"), size: size, height: h, width: size.width, speed: 0.024, alpha: 1, tint: 0, mirrorsVertically: false)
+        addLayer(texture: textures.texture(named: "FrozenRiftBankOverlay"), size: size, height: h, width: size.width, speed: 0.14, alpha: 0.88, tint: 0, mirrorsVertically: false)
         addFrozenDecorations(size: size, cellHeight: h)
     }
 
     private func addFrozenDecorations(size: CGSize, cellHeight: CGFloat) {
         let group = SKNode(); group.zPosition = CGFloat(layers.count); addChild(group)
-        let sheet = SKTexture(imageNamed: "FrozenRiftDecorSheet"); sheet.filteringMode = .linear
+        let sheet = textures.texture(named: "FrozenRiftDecorSheet"); sheet.filteringMode = .linear
         let boulder = SKTexture(rect: CGRect(x: 0.02, y: 0.69, width: 0.46, height: 0.28), in: sheet)
         let crystal = SKTexture(rect: CGRect(x: 0.52, y: 0.69, width: 0.46, height: 0.28), in: sheet)
         let frost = SKTexture(rect: CGRect(x: 0.02, y: 0.34, width: 0.46, height: 0.29), in: sheet)
@@ -125,7 +126,7 @@ final class CaveBackdrop: SKNode {
 
     private func addGlowrootDecorations(size: CGSize, cellHeight: CGFloat) {
         let group = SKNode(); group.zPosition = CGFloat(layers.count); addChild(group)
-        let sheet = SKTexture(imageNamed: "GlowrootGrottoDecorSheet"); sheet.filteringMode = .linear
+        let sheet = textures.texture(named: "GlowrootGrottoDecorSheet"); sheet.filteringMode = .linear
         let mushrooms = SKTexture(rect: CGRect(x: 0.02, y: 0.68, width: 0.46, height: 0.29), in: sheet)
         let roots = SKTexture(rect: CGRect(x: 0.52, y: 0.68, width: 0.46, height: 0.29), in: sheet)
         let boulder = SKTexture(rect: CGRect(x: 0.02, y: 0.02, width: 0.46, height: 0.59), in: sheet)
@@ -137,14 +138,14 @@ final class CaveBackdrop: SKNode {
 
     private func configureStormLayers(size: CGSize) {
         let h = size.height * 1.34
-        addLayer(texture: SKTexture(imageNamed: "StormChasmBaseTile"), size: size, height: h, width: size.width, speed: 0.03, alpha: 1, tint: 0, mirrorsVertically: false)
-        addLayer(texture: SKTexture(imageNamed: "StormChasmBankOverlay"), size: size, height: h, width: size.width, speed: 0.16, alpha: 0.88, tint: 0, mirrorsVertically: false)
+        addLayer(texture: textures.texture(named: "StormChasmBaseTile"), size: size, height: h, width: size.width, speed: 0.03, alpha: 1, tint: 0, mirrorsVertically: false)
+        addLayer(texture: textures.texture(named: "StormChasmBankOverlay"), size: size, height: h, width: size.width, speed: 0.16, alpha: 0.88, tint: 0, mirrorsVertically: false)
         addStormDecorations(size: size, cellHeight: h)
     }
 
     private func addStormDecorations(size: CGSize, cellHeight: CGFloat) {
         let group = SKNode(); group.zPosition = CGFloat(layers.count); addChild(group)
-        let sheet = SKTexture(imageNamed: "StormChasmDecorSheet"); sheet.filteringMode = .linear
+        let sheet = textures.texture(named: "StormChasmDecorSheet"); sheet.filteringMode = .linear
         let boulders = SKTexture(rect: CGRect(x: 0.02, y: 0.69, width: 0.46, height: 0.28), in: sheet)
         let lightning = SKTexture(rect: CGRect(x: 0.52, y: 0.69, width: 0.46, height: 0.28), in: sheet)
         let mist = SKTexture(rect: CGRect(x: 0.02, y: 0.34, width: 0.46, height: 0.29), in: sheet)
@@ -156,14 +157,14 @@ final class CaveBackdrop: SKNode {
 
     private func configureDaybreakLayers(size: CGSize) {
         let h = size.height * 1.34
-        addLayer(texture: SKTexture(imageNamed: "DaybreakExitBaseTile"), size: size, height: h, width: size.width, speed: 0.022, alpha: 1, tint: 0, mirrorsVertically: false)
-        addLayer(texture: SKTexture(imageNamed: "DaybreakExitBankOverlay"), size: size, height: h, width: size.width, speed: 0.13, alpha: 0.88, tint: 0, mirrorsVertically: false)
+        addLayer(texture: textures.texture(named: "DaybreakExitBaseTile"), size: size, height: h, width: size.width, speed: 0.022, alpha: 1, tint: 0, mirrorsVertically: false)
+        addLayer(texture: textures.texture(named: "DaybreakExitBankOverlay"), size: size, height: h, width: size.width, speed: 0.13, alpha: 0.88, tint: 0, mirrorsVertically: false)
         addDaybreakDecorations(size: size, cellHeight: h)
     }
 
     private func addDaybreakDecorations(size: CGSize, cellHeight: CGFloat) {
         let group = SKNode(); group.zPosition = CGFloat(layers.count); addChild(group)
-        let sheet = SKTexture(imageNamed: "DaybreakExitDecorSheet"); sheet.filteringMode = .linear
+        let sheet = textures.texture(named: "DaybreakExitDecorSheet"); sheet.filteringMode = .linear
         let flowers = SKTexture(rect: CGRect(x: 0.02, y: 0.69, width: 0.96, height: 0.28), in: sheet)
         let roots = SKTexture(rect: CGRect(x: 0.02, y: 0.36, width: 0.96, height: 0.28), in: sheet)
         let vines = SKTexture(rect: CGRect(x: 0.02, y: 0.02, width: 0.46, height: 0.29), in: sheet)
@@ -175,7 +176,7 @@ final class CaveBackdrop: SKNode {
 
     private func addVolcanicDecorations(size: CGSize, cellHeight: CGFloat) {
         let group = SKNode(); group.zPosition = CGFloat(layers.count); addChild(group)
-        let sheet = SKTexture(imageNamed: "VolcanicPassageDecorSheet"); sheet.filteringMode = .linear
+        let sheet = textures.texture(named: "VolcanicPassageDecorSheet"); sheet.filteringMode = .linear
         let basalt = SKTexture(rect: CGRect(x: 0.02, y: 0.69, width: 0.46, height: 0.28), in: sheet)
         let obsidian = SKTexture(rect: CGRect(x: 0.52, y: 0.69, width: 0.46, height: 0.28), in: sheet)
         let embers = SKTexture(rect: CGRect(x: 0.02, y: 0.34, width: 0.46, height: 0.29), in: sheet)
@@ -187,7 +188,7 @@ final class CaveBackdrop: SKNode {
 
     private func addRuinsDecorations(size: CGSize, cellHeight: CGFloat) {
         let group = SKNode(); group.zPosition = CGFloat(layers.count); addChild(group)
-        let sheet = SKTexture(imageNamed: "AncientRuinsDecorSheet"); sheet.filteringMode = .linear
+        let sheet = textures.texture(named: "AncientRuinsDecorSheet"); sheet.filteringMode = .linear
         let rubble = SKTexture(rect: CGRect(x: 0.02, y: 0.69, width: 0.96, height: 0.28), in: sheet)
         let rune = SKTexture(rect: CGRect(x: 0.02, y: 0.35, width: 0.46, height: 0.29), in: sheet)
         let vines = SKTexture(rect: CGRect(x: 0.52, y: 0.34, width: 0.45, height: 0.30), in: sheet)
@@ -209,7 +210,7 @@ final class CaveBackdrop: SKNode {
         let group = SKNode()
         group.zPosition = CGFloat(layers.count)
         addChild(group)
-        let sheet = SKTexture(imageNamed: "CrystalCavernDecorSheet")
+        let sheet = textures.texture(named: "CrystalCavernDecorSheet")
         sheet.filteringMode = .linear
         let violetCluster = SKTexture(rect: CGRect(x: 0.02, y: 0.69, width: 0.46, height: 0.28), in: sheet)
         let cyanCluster = SKTexture(rect: CGRect(x: 0.51, y: 0.69, width: 0.46, height: 0.28), in: sheet)
@@ -243,7 +244,7 @@ final class CaveBackdrop: SKNode {
         group.zPosition = CGFloat(layers.count)
         addChild(group)
 
-        let sheet = SKTexture(imageNamed: "RiverDecorSheet")
+        let sheet = textures.texture(named: "RiverDecorSheet")
         sheet.filteringMode = .linear
         // SpriteKit texture coordinates start at the bottom. Each crop selects
         // a separate prop family from the transparent decor sheet.
@@ -308,5 +309,13 @@ final class CaveBackdrop: SKNode {
     }
 
     required init?(coder: NSCoder) { fatalError("Not supported") }
-    override init() { super.init() }
+    init(textures: GameTextureStore = GameTextureStore()) {
+        self.textures = textures
+        super.init()
+    }
+
+    func releaseLayers() {
+        removeAllChildren()
+        layers.removeAll()
+    }
 }

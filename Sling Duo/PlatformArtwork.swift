@@ -58,16 +58,29 @@ struct PlatformArtwork {
               body: CGRect(x: 32, y: 115, width: 2108, height: 470))
     ]
 
-    private static let textures = Dictionary(uniqueKeysWithValues: (normal + precision + crystal + river + riverPrecision + riverMoving + ruins + volcanic + frozen + glowroot + storm + daybreak).map { art in
-        (art.name, SKTexture(imageNamed: art.name))
-    })
+    static func names(for style: PlatformStyle) -> [String] {
+        let artwork: [PlatformArtwork]
+        switch style {
+        case .depths: artwork = normal + precision
+        case .crystal: artwork = crystal
+        case .river: artwork = river + riverPrecision + riverMoving
+        case .ruins: artwork = ruins
+        case .volcanic: artwork = volcanic
+        case .frozen: artwork = frozen
+        case .glowroot: artwork = glowroot
+        case .storm: artwork = storm
+        case .daybreak: artwork = daybreak
+        }
+        return artwork.map(\.name)
+    }
 
-    func makeSprite(width: CGFloat) -> SKSpriteNode {
+    func makeSprite(width: CGFloat, textures: GameTextureStore = GameTextureStore()) -> SKSpriteNode {
+        // Geometry remains in master-image coordinates; normalized UVs and pivots
+        // are identical for the downsampled runtime canvas.
         let crop = body.insetBy(dx: -8, dy: -8)
         let uv = CGRect(x: crop.minX / pixels.width, y: (pixels.height - crop.maxY) / pixels.height,
                         width: crop.width / pixels.width, height: crop.height / pixels.height)
-        let texture = SKTexture(rect: uv, in: Self.textures[name]!)
-        texture.filteringMode = .linear
+        let texture = textures.texture(named: name, rect: uv)
         let sprite = SKSpriteNode(texture: texture)
         sprite.name = "platformArtwork"
         let scale = width / body.width

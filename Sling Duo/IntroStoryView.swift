@@ -15,16 +15,16 @@ struct IntroStoryView: View {
     private let panels: [Panel] = [
         .init(eyebrow: "MORNING IN THE VALLEY", title: "A signal below.",
               line: "Beyond the camp, an old cave has started to glow.",
-              orangePose: "HeroOrangeIdle", cyanPose: "HeroCyanIdle", showsDawnheart: false),
+              orangePose: "HeroOrangeIdleIllustration", cyanPose: "HeroCyanIdleIllustration", showsDawnheart: false),
         .init(eyebrow: "THE OLD MAP", title: "The Dawnheart is missing.",
               line: "Its fragments are scattered somewhere beneath the mountain.",
-              orangePose: "HeroOrangePull", cyanPose: "HeroCyanAnchored", showsDawnheart: true),
+              orangePose: "HeroOrangePullIllustration", cyanPose: "HeroCyanAnchoredIllustration", showsDawnheart: true),
         .init(eyebrow: "ONE WAY FORWARD", title: "Follow the light.",
               line: "Each cave holds a fragment — and a path to the next.",
-              orangePose: "HeroOrangeCatch", cyanPose: "HeroCyanCatch", showsDawnheart: true),
+              orangePose: "HeroOrangeCatchIllustration", cyanPose: "HeroCyanCatchIllustration", showsDawnheart: true),
         .init(eyebrow: "THE DUO", title: "Then we go down. Together.",
               line: "Pull, launch, catch — and bring the dawn back home.",
-              orangePose: "HeroOrangeFlight", cyanPose: "HeroCyanFlight", showsDawnheart: false)
+              orangePose: "HeroOrangeFlightIllustration", cyanPose: "HeroCyanFlightIllustration", showsDawnheart: false)
     ]
 
     let finish: () -> Void

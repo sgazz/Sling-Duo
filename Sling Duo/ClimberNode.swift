@@ -17,7 +17,7 @@ final class ClimberNode: SKShapeNode {
     private(set) var pose: Pose = .idle
     private var visualTime: TimeInterval = 0
     private var beltPoint = CGPoint.zero
-    private static var textures: [String: SKTexture] = [:]
+    private let textures: GameTextureStore
 
     // This point follows the artwork's belt, including lean and landing squash.
     var ropeAttachment: CGPoint {
@@ -25,7 +25,8 @@ final class ClimberNode: SKShapeNode {
         return artwork.convert(beltPoint, to: parent)
     }
 
-    init(hero: Hero) {
+    init(hero: Hero, textures: GameTextureStore = GameTextureStore()) {
+        self.textures = textures
         self.hero = hero
         super.init()
         fillColor = hero == .cyan ? SKColor(red: 0.12, green: 0.82, blue: 0.86, alpha: 1)
@@ -86,18 +87,11 @@ final class ClimberNode: SKShapeNode {
     private func show(_ next: Pose) {
         pose = next
         let frame = Self.frame(hero, next)
-        let texture: SKTexture
-        if let cached = Self.textures[frame.name] { texture = cached }
-        else {
-            let full = SKTexture(imageNamed: frame.name)
-            let uv = CGRect(x: frame.crop.minX / frame.pixels.width,
-                            y: 1 - frame.crop.maxY / frame.pixels.height,
-                            width: frame.crop.width / frame.pixels.width,
-                            height: frame.crop.height / frame.pixels.height)
-            texture = SKTexture(rect: uv, in: full)
-            texture.filteringMode = .linear
-            Self.textures[frame.name] = texture
-        }
+        let uv = CGRect(x: frame.crop.minX / frame.pixels.width,
+                        y: 1 - frame.crop.maxY / frame.pixels.height,
+                        width: frame.crop.width / frame.pixels.width,
+                        height: frame.crop.height / frame.pixels.height)
+        let texture = textures.texture(named: frame.name, rect: uv)
         // A single pixel scale per hero preserves body size across all poses.
         let scale: CGFloat = hero == .cyan ? 48 / 995 : 46 / 1028
         artwork.texture = texture
@@ -108,6 +102,11 @@ final class ClimberNode: SKShapeNode {
                             y: (frame.crop.maxY - frame.beltY) * scale)
         let grounded = next == .idle || next == .anchored || next == .catchPose
         artwork.position = CGPoint(x: -beltPoint.x, y: grounded ? -18 : -3 - beltPoint.y)
+    }
+
+    func releaseArtwork() {
+        artwork.texture = nil
+        artworkOutline.texture = nil
     }
 
     private static func frame(_ hero: Hero, _ pose: Pose) -> Frame {

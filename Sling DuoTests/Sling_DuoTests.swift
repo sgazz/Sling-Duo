@@ -23,7 +23,8 @@ struct Sling_DuoTests {
             }
             for state in ["Idle", "Anchored", "Pull", "Flight", "Catch", "Miss"] {
                 let color = hero == .cyan ? "Cyan" : "Orange"
-                #expect(UIImage(named: "Hero" + color + state) != nil)
+                #expect(NSDataAsset(name: "Hero" + color + state + "Texture") != nil)
+                #expect(UIImage(named: "Hero" + color + state + "Illustration") != nil)
             }
         }
     }
@@ -36,7 +37,7 @@ struct Sling_DuoTests {
             let ledges = scene.children.compactMap { $0 as? LedgeNode }
             #expect(ledges.count >= 4)
             #expect((ledges.map { $0.position.y }.max() ?? 0) > size.height)
-            #expect(ledges.filter { $0.childNode(withName: "targetMarker") != nil }.count == 1)
+            #expect(ledges.filter { $0.childNode(withName: "targetMarker") != nil }.isEmpty)
             scene.setGameplayPaused(true)
             let positions = ledges.map { $0.position }
             scene.update(1)
@@ -315,54 +316,54 @@ struct Sling_DuoTests {
         #expect(body.path!.boundingBox == renderedBounds)
     }
 
-    @Test func platformTypeCuesPersistWithoutChangingMotionOrGrabGeometry() {
-        for style: PlatformStyle in [.depths, .crystal, .river, .ruins, .volcanic,
-                                     .frozen, .glowroot, .storm, .daybreak] {
-            let precision = LedgeNode(center: CGPoint(x: 195, y: 300), isPrecision: true, style: style)
-            let badge = precision.childNode(withName: "platformTypeMarker") as! SKLabelNode
-            #expect(badge.text == "◆")
-            #expect(!badge.isHidden)
-            precision.setTarget(true)
-            let marker = precision.childNode(withName: "targetMarker") as! SKShapeNode
-            #expect(marker.path != nil)
-            #expect(marker.lineWidth > 0)
-            #expect(marker.path!.boundingBox.minY > precision.size.height / 2)
-            precision.setTarget(false)
-            #expect(!badge.isHidden)
-
-            let moving = LedgeNode(center: CGPoint(x: 195, y: 300), style: style)
-            moving.configureMotion()
-            let movingBadge = moving.childNode(withName: "platformTypeMarker") as! SKLabelNode
-            #expect(movingBadge.text == "↔ 2×")
-            #expect(!movingBadge.isHidden)
-            let initial = moving.position
-            moving.advanceMotion(0.5)
-            #expect(moving.position == initial)
-            moving.setTarget(true)
-            moving.advanceMotion(0.5)
-            #expect(moving.position.x != initial.x)
-            moving.setTarget(false)
-            let stopped = moving.position
-            moving.advanceMotion(0.5)
-            #expect(moving.position == stopped)
-            #expect(moving.childNode(withName: "targetMarker") == nil)
-            #expect(!movingBadge.isHidden)
-        }
-    }
-
-    @Test func targetDecorationDoesNotChangeGrabRegion() {
+    @Test func targetingHasNoGraphicsAndDoesNotChangeGrabRegion() {
         let ledge = LedgeNode(center: CGPoint(x: 195, y: 300))
         let point = ledge.grabPoint
         let descending = CGVector(dx: 0, dy: -100)
         #expect(ledge.canGrab(climberPosition: point, velocity: descending))
         ledge.setTarget(true)
         ledge.setTarget(true)
-        #expect(ledge.children.filter { $0.name == "targetMarker" }.count == 1)
+        #expect(ledge.childNode(withName: "targetMarker") == nil)
+        #expect(ledge.childNode(withName: "platformTypeMarker") == nil)
         #expect(ledge.grabPoint == point)
         #expect(ledge.canGrab(climberPosition: point, velocity: descending))
         ledge.setTarget(false)
         #expect(ledge.childNode(withName: "targetMarker") == nil)
         #expect(!ledge.canGrab(climberPosition: point + CGVector(dx: 300, dy: 0), velocity: descending))
+    }
+
+    @Test func cavePreloadRetainsOnlyActivePackageAndReleasesIt() async {
+        let textures = GameTextureStore()
+        for cave in CaveID.allCases + CaveID.allCases.reversed() {
+            await textures.preload(cave: cave)
+            #expect(textures.cachedNames == GameTextureStore.names(for: cave))
+            #expect(textures.activeCave == cave)
+            let spawner = LedgeSpawner(sceneWidth: 390, style: cave.platformStyle, textures: textures)
+            let ledge = spawner.nextLedge(above: spawner.startingLedge(y: 100), score: 10)
+            ledge.setTarget(true)
+            #expect(ledge.childNode(withName: "targetMarker") == nil)
+            #expect(ledge.childNode(withName: "platformTypeMarker") == nil)
+        }
+        textures.release()
+        #expect(textures.cachedNames.isEmpty)
+        #expect(textures.activeCave == nil)
+    }
+
+    @Test func leavingCaveReleasesSceneTextureReferences() async {
+        let scene = GameScene(size: CGSize(width: 390, height: 844))
+        let view = SKView(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
+        view.presentScene(scene)
+        for cave in CaveID.allCases {
+            scene.releaseCaveResources()
+            #expect(scene.cachedTextureNames.isEmpty)
+            await scene.preloadCave(cave)
+            scene.selectCave(cave)
+            #expect(scene.cachedTextureNames == GameTextureStore.names(for: cave))
+        }
+        scene.releaseCaveResources()
+        #expect(scene.cachedTextureNames.isEmpty)
+        #expect(scene.children.compactMap { $0 as? LedgeNode }.isEmpty)
+        view.presentScene(nil)
     }
 
     @Test func fastDescentGrabsBetweenPhysicsSteps() {
@@ -662,7 +663,7 @@ struct Sling_DuoTests {
             let size = CGSize(width: precision ? 64 : 126, height: 18)
             let assets = precision ? PlatformArtwork.precision : PlatformArtwork.normal
             for index in 0..<3 {
-                #expect(UIImage(named: assets[index].name) != nil)
+                #expect(NSDataAsset(name: assets[index].name + "Texture") != nil)
                 let ledge = LedgeNode(center: CGPoint(x: 195, y: 300), size: size,
                                       isPrecision: precision, artVariant: index)
                 let art = ledge.childNode(withName: "platformArtwork") as? SKSpriteNode

@@ -11,8 +11,9 @@ final class GameScene: SKScene, ObservableObject {
     private var progress = EscapeProgress()
     private var cave: CaveID = .depths
 
-    private let mint = ClimberNode(hero: .cyan)
-    private let coral = ClimberNode(hero: .orange)
+    private let textures = GameTextureStore()
+    private lazy var mint = ClimberNode(hero: .cyan, textures: textures)
+    private lazy var coral = ClimberNode(hero: .orange, textures: textures)
     private let sound = GameAudio()
     var soundEnabled: Bool {
         get { sound.enabled }
@@ -37,7 +38,7 @@ final class GameScene: SKScene, ObservableObject {
     private var happyTime: TimeInterval = 0
     private let launchHaptic = UIImpactFeedbackGenerator(style: .soft)
     private var trailClock: TimeInterval = 0
-    private let backdrop = CaveBackdrop()
+    private lazy var backdrop = CaveBackdrop(textures: textures)
     private let aim = SKNode()
     private var touchOrigin = CGPoint.zero
     private var jumperOrigin = CGPoint.zero
@@ -82,6 +83,9 @@ final class GameScene: SKScene, ObservableObject {
     private var handoffTarget = CGPoint.zero
     private var ended: Bool { flow.phase == .over }
     private var flight: Bool { flow.phase == .flying }
+    #if GRAPHICS_PROFILE
+    private var graphicsProfileSession: GraphicsProfileSession?
+    #endif
     private var ready = false
 
 
@@ -107,8 +111,10 @@ final class GameScene: SKScene, ObservableObject {
             aim.addChild(dot)
         }
         aim.isHidden = true
-        layoutHUD()
         reset()
+        #if GRAPHICS_PROFILE
+        startGraphicsProfile()
+        #endif
         #if DEBUG
         scheduleUIPreview()
         #endif
@@ -185,6 +191,29 @@ final class GameScene: SKScene, ObservableObject {
         reset()
     }
 
+    func preloadCave(_ cave: CaveID) async {
+        await textures.preload(cave: cave)
+    }
+
+    func releaseCaveResources() {
+        setGameplayPaused(true)
+        removeAllActions()
+        for child in children where child !== gameCamera && child !== rope.node && child !== aim {
+            child.removeFromParent()
+        }
+        upcoming.removeAll()
+        current = nil
+        nextLedge = nil
+        anchor = nil
+        jumper = nil
+        mint.releaseArtwork()
+        coral.releaseArtwork()
+        backdrop.releaseLayers()
+        textures.release()
+    }
+
+    var cachedTextureNames: Set<String> { textures.cachedNames }
+
     func continueEndless() {
         guard progress.awaitingChoice else { return }
         progress.keepClimbing()
@@ -250,7 +279,7 @@ final class GameScene: SKScene, ObservableObject {
         // current run. Keep all gameplay state and only update layout-dependent
         // values used by the camera and subsequently spawned ledges.
         gameCamera.position.x = size.width / 2
-        spawner = LedgeSpawner(sceneWidth: size.width, style: cave.platformStyle)
+        spawner = LedgeSpawner(sceneWidth: size.width, style: cave.platformStyle, textures: textures)
         #if DEBUG
         scheduleUIPreview()
         #endif
@@ -267,6 +296,7 @@ final class GameScene: SKScene, ObservableObject {
         hudClock = 0
         progress = EscapeProgress(turbo: turboEnabled, cave: cave)
         best = UserDefaults.standard.integer(forKey: progress.recordPrefix + ".height")
+        textures.activate(cave: cave)
         buildBackdrop()
         backdrop.alpha = 1
         backgroundColor = SKColor(red: 0.055, green: 0.075, blue: 0.16, alpha: 1)
@@ -301,7 +331,7 @@ final class GameScene: SKScene, ObservableObject {
         coral.removeAllActions()
         addChild(mint)
         addChild(coral)
-        spawner = LedgeSpawner(sceneWidth: size.width, style: cave.platformStyle)
+        spawner = LedgeSpawner(sceneWidth: size.width, style: cave.platformStyle, textures: textures)
         gameCamera.position = CGPoint(x: size.width / 2, y: size.height / 2)
         current = spawner.startingLedge(y: size.height * 0.34)
         addChild(current)
@@ -345,6 +375,9 @@ final class GameScene: SKScene, ObservableObject {
     }
 
     override func update(_ currentTime: TimeInterval) {
+        #if GRAPHICS_PROFILE
+        graphicsProfileSession?.frame(currentTime)
+        #endif
         guard ready, !userPaused, appActive else { return }
         defer {
             previousTime = currentTime
@@ -812,3 +845,50 @@ final class GameScene: SKScene, ObservableObject {
         publishHUD()
     }
 }
+
+#if GRAPHICS_PROFILE
+extension GameScene {
+    private func startGraphicsProfile() {
+        let session = GraphicsProfileSession()
+        graphicsProfileSession = session
+        Task { @MainActor in
+            // Warm the view before comparing steady-state phases.
+            try? await Task.sleep(for: .seconds(2))
+            for round in 0..<2 {
+                for cave in CaveID.allCases {
+                    releaseCaveResources()
+                    await preloadCave(cave)
+                    selectCave(cave)
+                    setGameplayPaused(false)
+                    session.begin("round\(round)-\(cave.rawValue)-idle")
+                    try? await Task.sleep(for: .seconds(2))
+                    session.end(textureCount: cachedTextureNames.count)
+
+                    _ = flow.beginAim()
+                    draggedDistance = 100
+                    drag = anchor.position + CGVector(dx: 40, dy: -100)
+                    session.begin("round\(round)-\(cave.rawValue)-aim")
+                    try? await Task.sleep(for: .seconds(2))
+                    session.end(textureCount: cachedTextureNames.count)
+
+                    velocity = rope.slingshotVelocity(anchor: anchor.position, free: jumper.position,
+                                                      target: nextLedge.grabPoint)
+                    drag = nil
+                    flow.launch()
+                    turboEnabled = true
+                    tempo.advance(200)
+                    session.begin("round\(round)-\(cave.rawValue)-turbo")
+                    try? await Task.sleep(for: .seconds(1))
+                    session.end(textureCount: cachedTextureNames.count)
+                    turboEnabled = false
+                }
+            }
+            releaseCaveResources()
+            session.begin("released")
+            try? await Task.sleep(for: .seconds(2))
+            session.end(textureCount: cachedTextureNames.count)
+            graphicsProfileSession = nil
+        }
+    }
+}
+#endif

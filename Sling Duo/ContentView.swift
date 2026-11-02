@@ -19,6 +19,8 @@ struct ContentView: View {
     @AppStorage("SlingDuo.unlocked.stormChasm") private var stormChasmUnlocked = false
     @AppStorage("SlingDuo.unlocked.daybreakExit") private var daybreakExitUnlocked = false
     @AppStorage("SlingDuo.dawnheartFragmentMask") private var dawnheartFragmentMask = 0
+    @State private var caveLoadTask: Task<Void, Never>?
+    @State private var loadingCave: CaveID?
     @State private var selectedCave: CaveID?
     @State private var paused = false
     @State private var showingTutorial = false
@@ -64,6 +66,15 @@ struct ContentView: View {
                 }
             }
         }
+        .overlay {
+            if loadingCave != nil {
+                ZStack {
+                    GamePalette.ink.ignoresSafeArea()
+                    ProgressView("Preparing cave…").tint(GamePalette.mint).foregroundStyle(.white)
+                }
+                .accessibilityIdentifier("caveLoading")
+            }
+        }
         .preferredColorScheme(.dark)
         .statusBarHidden()
         .onAppear(perform: configure)
@@ -85,13 +96,19 @@ struct ContentView: View {
             scene.setActive(newPhase == .active)
             if newPhase != .active { pause() }
         }
-        .onDisappear { resumeTask?.cancel() }
+        .onDisappear { resumeTask?.cancel(); caveLoadTask?.cancel() }
     }
 
     private func configure() {
         scene.turboEnabled = turboEnabled
         scene.soundEnabled = soundEnabled
         scene.steeringMode = SteeringMode(rawValue: steeringMode) ?? .tilt
+        #if GRAPHICS_PROFILE
+        didSeeStory = true
+        didSeeTutorial = true
+        selectedCave = .depths
+        scene.setGameplayPaused(false)
+        #endif
         #if DEBUG
         let environment = ProcessInfo.processInfo.environment
         let launchesGameplayForTest = environment["SLINGDUO_SKIP_ONBOARDING"] == "1"
@@ -123,24 +140,35 @@ struct ContentView: View {
 
     private func start(_ cave: CaveID) {
         resumeTask?.cancel()
-        scene.turboEnabled = turboEnabled
-        scene.soundEnabled = soundEnabled
-        scene.steeringMode = SteeringMode(rawValue: steeringMode) ?? .tilt
+        caveLoadTask?.cancel()
         scene.setGameplayPaused(true)
-        scene.selectCave(cave)
-        selectedCave = cave
-        if !didSeeTutorial {
-            tutorialFromPause = false
-            showingTutorial = true
-        } else {
-            paused = true
-            resume()
+        // Drop old nodes before dropping their texture ownership.
+        scene.releaseCaveResources()
+        loadingCave = cave
+        caveLoadTask = Task { @MainActor in
+            await scene.preloadCave(cave)
+            guard !Task.isCancelled else { return }
+            scene.turboEnabled = turboEnabled
+            scene.soundEnabled = soundEnabled
+            scene.steeringMode = SteeringMode(rawValue: steeringMode) ?? .tilt
+            scene.selectCave(cave)
+            selectedCave = cave
+            loadingCave = nil
+            if !didSeeTutorial {
+                tutorialFromPause = false
+                showingTutorial = true
+            } else {
+                paused = true
+                resume()
+            }
         }
     }
 
     private func returnToMap() {
         resumeTask?.cancel()
-        scene.setGameplayPaused(true)
+        caveLoadTask?.cancel()
+        loadingCave = nil
+        scene.releaseCaveResources()
         paused = false
         showingTutorial = false
         selectedCave = nil
@@ -241,7 +269,7 @@ struct ContentView: View {
 
     private func defeat(_ summary: RunSummary) -> some View {
         GameModal {
-            Image("HeroOrangeMiss").resizable().scaledToFit().frame(height: 90).accessibilityHidden(true)
+            Image("HeroOrangeMissIllustration").resizable().scaledToFit().frame(height: 90).accessibilityHidden(true)
             ModalHeading(eyebrow: (summary.turbo ? "Turbo • " : "") + (summary.endless ? "Endless" : "Escape"),
                          title: "A little tangled.", subtitle: "Same rope. Another chance.")
             HStack(alignment: .firstTextBaseline, spacing: 5) {

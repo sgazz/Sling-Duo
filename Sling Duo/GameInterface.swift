@@ -94,7 +94,7 @@ struct CaveMapView: View {
             }
             .padding(16).background(.white.opacity(unlocked ? 0.09 : 0.04), in: RoundedRectangle(cornerRadius: 24))
             .overlay(RoundedRectangle(cornerRadius: 24).strokeBorder(unlocked ? .white.opacity(0.14) : .white.opacity(0.06)))
-        }.buttonStyle(.plain).disabled(!unlocked)
+        }.buttonStyle(.plain).disabled(!unlocked).accessibilityIdentifier("cave." + cave.rawValue)
     }
 
     private func caveIcon(_ cave: CaveID) -> String {
@@ -463,8 +463,8 @@ struct HowToPlayView: View {
     var body: some View {
         GameModal {
             HStack(spacing: -12) {
-                Image("HeroCyanIdle").resizable().scaledToFit().frame(width: 95, height: 95)
-                Image("HeroOrangeIdle").resizable().scaledToFit().frame(width: 95, height: 95)
+                Image("HeroCyanIdleIllustration").resizable().scaledToFit().frame(width: 95, height: 95)
+                Image("HeroOrangeIdleIllustration").resizable().scaledToFit().frame(width: 95, height: 95)
             }.accessibilityHidden(true)
             ModalHeading(eyebrow: "Sling Duo", title: "Better together.", subtitle: "Two heroes. One rope. Find your way out.")
             VStack(spacing: 16) {

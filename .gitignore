@@ -11,3 +11,7 @@ xcuserdata/
 *.dSYM/
 *.dSYM.zip
 *.xcarchive/
+
+# Local Python export tooling
+__pycache__/
+*.pyc
