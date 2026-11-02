@@ -85,7 +85,7 @@ for t,phase in phases:
  if len(samples)<10:raise SystemExit(f'Insufficient GPU coverage: {phase}: {len(samples)} frames')
  rows.append(dict(variant=variant,phase=phase,trace_phase_start_seconds=round(t/1e9,6),phase_seconds=phase_durations[phase],spritekit_gpu_frames=len(samples),spritekit_gpu_active_median_ms=round(statistics.median(samples),6),spritekit_gpu_active_p95_ms=round(percentile(samples,.95),6),app_gpu_active_percent=round(union_ns(phase_intervals[phase])/(phase_durations[phase]*1e9)*100,4)))
 with (out/(variant+'-gpu-by-phase.csv')).open('w') as f:
- w=csv.DictWriter(f,fieldnames=rows[0]);w.writeheader();w.writerows(rows)
+ w=csv.DictWriter(f,fieldnames=rows[0],lineterminator="\n");w.writeheader();w.writerows(rows)
 summary={}
 for kind in ['idle','aim','turbo']:
  sample=[v for phase,values in phase_frames.items() if phase.endswith('-'+kind) for v in values]
