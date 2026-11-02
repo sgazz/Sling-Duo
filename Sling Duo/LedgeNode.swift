@@ -129,13 +129,6 @@ final class LedgeNode: SKShapeNode {
     func configureMotion() {
         isMovingPlatform = true
         motionCenter = position.x
-        let badge = SKLabelNode(fontNamed: "AvenirNext-Bold")
-        badge.name = "movingBadge"
-        badge.text = "↔ 2×"
-        badge.fontSize = 12
-        badge.fontColor = .systemYellow
-        badge.position.y = -24
-        addChild(badge)
     }
 
     func advanceMotion(_ dt: TimeInterval) {

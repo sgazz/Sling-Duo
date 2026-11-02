@@ -26,11 +26,13 @@ struct GameHUDState: Equatable {
     var newBest = false
     var endless = false
     var turbo = false
+    var turboActive = false
     var tempo = 1.0
     var seconds = 0
     var remaining: Double?
     var instruction = "Pull a hero to launch"
-    var chapter: String { height < 50 ? "The Depths" : (height < 100 ? "The Climb" : "Daylight Ahead") }
+    var instructionIcon = "hand.draw.fill"
+    var caveTitle = "The Depths"
 }
 
 struct CaveMapView: View {
@@ -142,9 +144,12 @@ struct DawnheartProgress: View {
                         if recovered {
                             Image("DawnheartFragment").resizable().scaledToFit().padding(3)
                         } else {
-                            Image(systemName: "diamond").font(.caption2).foregroundStyle(.white.opacity(0.24))
+                            Text("\(index + 1)").font(.caption2.bold()).foregroundStyle(.white.opacity(0.3))
                         }
-                    }.frame(maxWidth: .infinity).frame(height: 30)
+                    }
+                    .frame(maxWidth: .infinity).frame(height: 30)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel("\(CaveID.allCases[index].title) fragment \(recovered ? "recovered" : "missing")")
                 }
             }
         }
@@ -283,8 +288,9 @@ struct GameHUDOverlay: View {
                         if !state.endless { Text("/150").font(.caption).foregroundStyle(.white.opacity(0.5)) }
                         Text("·").foregroundStyle(.white.opacity(0.3)).padding(.horizontal, 3)
                         Text("\(state.points) pts").font(.subheadline.bold()).accessibilityIdentifier("scoreValue")
-                        if state.turbo {
-                            Text(String(format: "×%.2f", state.tempo)).font(.caption2.bold()).foregroundStyle(GamePalette.gold)
+                        if state.turbo || (state.endless && state.tempo > 1) {
+                            Text(state.endless && !state.turboActive ? String(format: "×%.2f", state.tempo) : (state.turboActive ? String(format: "×%.2f", state.tempo) : "TURBO"))
+                                .font(.caption2.bold()).foregroundStyle(GamePalette.gold)
                         }
                     }
                     .lineLimit(1).minimumScaleFactor(0.7).monospacedDigit()
@@ -335,7 +341,7 @@ struct GameHUDOverlay: View {
                 HStack {
                     VStack(alignment: .leading, spacing: 3) {
                         Text(state.endless ? "ENDLESS" : "ESCAPE").font(.caption2.bold()).tracking(2).foregroundStyle(GamePalette.mint)
-                        Text(state.chapter).font(.system(.subheadline, design: .rounded, weight: .bold))
+                        Text(state.caveTitle).font(.system(.subheadline, design: .rounded, weight: .bold))
                     }
                     Spacer()
                     Color.clear.frame(width: 96, height: 44)
@@ -359,18 +365,22 @@ struct GameHUDOverlay: View {
                     HStack(spacing: 4) {
                         Text("COMBO").font(.system(size: 9, weight: .bold)).foregroundStyle(.white.opacity(0.55))
                         ForEach(0..<5) { index in
-                            Capsule().fill(index < state.streak % 5 ? GamePalette.gold : .white.opacity(0.12))
+                            let filled = state.streak == 0 ? 0 : min(5, (state.streak - 1) % 5 + 1)
+                            Capsule().fill(index < filled ? GamePalette.gold : .white.opacity(0.12))
                                 .frame(width: 10, height: 4)
                         }
                         if state.streak >= 5 { Text("\(state.streak)").font(.caption2.bold()).foregroundStyle(GamePalette.gold) }
                     }
                     .accessibilityElement(children: .ignore).accessibilityLabel("Combo streak \(state.streak)")
                     Spacer()
-                    if state.turbo {
-                        Label(String(format: "×%.2f", state.tempo), systemImage: "bolt.fill")
+                    if state.turbo || (state.endless && state.tempo > 1) {
+                        Label(state.endless && !state.turboActive ? String(format: "×%.2f", state.tempo) : (state.turboActive ? String(format: "×%.2f", state.tempo) : "TURBO"), systemImage: "bolt.fill")
                             .font(.caption2.bold()).foregroundStyle(GamePalette.gold)
                     }
-                    Text(EscapeProgress.timeText(Double(state.seconds))).font(.caption2).monospacedDigit().foregroundStyle(.white.opacity(0.5))
+                    HStack(spacing: 3) {
+                        Text("TIME").font(.system(size: 9, weight: .bold)).foregroundStyle(.white.opacity(0.4))
+                        Text(EscapeProgress.timeText(Double(state.seconds))).font(.caption2).monospacedDigit().foregroundStyle(.white.opacity(0.5))
+                    }
                 }
             }
             .padding(14)
@@ -401,7 +411,7 @@ struct GameHUDOverlay: View {
             .background(GamePalette.ink.opacity(0.95), in: RoundedRectangle(cornerRadius: 20))
             .overlay(RoundedRectangle(cornerRadius: 20).strokeBorder((urgent ? GamePalette.coral : GamePalette.gold).opacity(0.5)))
         } else {
-            Label(state.instruction, systemImage: state.height == 0 ? "hand.draw.fill" : "arrow.left.and.right")
+            Label(state.instruction, systemImage: state.instructionIcon)
                 .font(.system(.subheadline, design: .rounded, weight: .semibold))
                 .multilineTextAlignment(.center)
                 .padding(.vertical, 12).padding(.horizontal, 18)
@@ -496,7 +506,7 @@ struct ScoringGuide: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 7) {
             Text("MAKE EACH CATCH COUNT").font(.system(size: 9, weight: .bold)).tracking(1).foregroundStyle(GamePalette.mint)
-            Text("PERFECT  +1 for the center of a platform\nCOMBO  +2 every five catches without a miss\n↔ 2×  Moving platform, double base points\n0  Trick platform, no points; breaks combo")
+            Text("PERFECT  +1 for the center of a platform\nCOMBO  +2 every five catches without a miss\n0  Trick platform, no points; breaks combo")
                 .font(.caption).foregroundStyle(.white.opacity(0.55)).lineSpacing(5).fixedSize(horizontal: false, vertical: true)
         }.frame(maxWidth: .infinity, alignment: .leading)
     }
