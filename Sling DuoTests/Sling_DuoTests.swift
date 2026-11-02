@@ -36,7 +36,7 @@ struct Sling_DuoTests {
             let ledges = scene.children.compactMap { $0 as? LedgeNode }
             #expect(ledges.count >= 4)
             #expect((ledges.map { $0.position.y }.max() ?? 0) > size.height)
-            #expect(ledges.filter { $0.childNode(withName: "targetMarker") != nil }.isEmpty)
+            #expect(ledges.filter { $0.childNode(withName: "targetMarker") != nil }.count == 1)
             scene.setGameplayPaused(true)
             let positions = ledges.map { $0.position }
             scene.update(1)
@@ -277,6 +277,77 @@ struct Sling_DuoTests {
         rope.reset()
         #expect(!rope.didOverstretchTooLong)
         #expect(rope.tension == 0)
+    }
+
+    @Test func ropePhysicsAndPredictionDoNotBuildRenderPaths() {
+        let rope = RubberRopeSystem()
+        let free = CGPoint(x: 25, y: -220)
+        let velocity = CGVector(dx: 10, dy: 40)
+        let force = rope.springForce(anchor: .zero, free: free, velocity: velocity,
+                                     deltaTime: 1.0 / 120)
+        let expected = RopeDynamics.force(anchor: .zero, free: free, velocity: velocity)
+        #expect(force == expected)
+        rope.updateDragState(anchor: .zero, free: free)
+        for name in ["ropeHalo", "ropeBody", "ropeCore"] {
+            #expect((rope.node.childNode(withName: name) as? SKShapeNode)?.path == nil)
+        }
+        rope.render(anchor: .zero, free: free)
+        let body = rope.node.childNode(withName: "ropeBody") as! SKShapeNode
+        let renderedBounds = body.path!.boundingBox
+        let simulationRope = RubberRopeSystem()
+        var position = free
+        var predictedPosition = free
+        var liveVelocity = velocity
+        var predictedVelocity = velocity
+        let dt = 1.0 / 120
+        for _ in 0..<108 {
+            let liveForce = GameConstants.gravity + simulationRope.springForce(
+                anchor: .zero, free: position, velocity: liveVelocity, deltaTime: dt)
+            RopeDynamics.integrate(position: &position, velocity: &liveVelocity,
+                                   force: liveForce, dt: dt)
+            RopeDynamics.step(position: &predictedPosition, velocity: &predictedVelocity,
+                              anchor: .zero, dt: dt)
+            #expect(position == predictedPosition)
+            #expect(liveVelocity == predictedVelocity)
+        }
+        _ = rope.springForce(anchor: .zero, free: CGPoint(x: 60, y: -400),
+                             velocity: velocity, deltaTime: 1.0 / 120)
+        #expect(body.path!.boundingBox == renderedBounds)
+    }
+
+    @Test func platformTypeCuesPersistWithoutChangingMotionOrGrabGeometry() {
+        for style: PlatformStyle in [.depths, .crystal, .river, .ruins, .volcanic,
+                                     .frozen, .glowroot, .storm, .daybreak] {
+            let precision = LedgeNode(center: CGPoint(x: 195, y: 300), isPrecision: true, style: style)
+            let badge = precision.childNode(withName: "platformTypeMarker") as! SKLabelNode
+            #expect(badge.text == "◆")
+            #expect(!badge.isHidden)
+            precision.setTarget(true)
+            let marker = precision.childNode(withName: "targetMarker") as! SKShapeNode
+            #expect(marker.path != nil)
+            #expect(marker.lineWidth > 0)
+            #expect(marker.path!.boundingBox.minY > precision.size.height / 2)
+            precision.setTarget(false)
+            #expect(!badge.isHidden)
+
+            let moving = LedgeNode(center: CGPoint(x: 195, y: 300), style: style)
+            moving.configureMotion()
+            let movingBadge = moving.childNode(withName: "platformTypeMarker") as! SKLabelNode
+            #expect(movingBadge.text == "↔ 2×")
+            #expect(!movingBadge.isHidden)
+            let initial = moving.position
+            moving.advanceMotion(0.5)
+            #expect(moving.position == initial)
+            moving.setTarget(true)
+            moving.advanceMotion(0.5)
+            #expect(moving.position.x != initial.x)
+            moving.setTarget(false)
+            let stopped = moving.position
+            moving.advanceMotion(0.5)
+            #expect(moving.position == stopped)
+            #expect(moving.childNode(withName: "targetMarker") == nil)
+            #expect(!movingBadge.isHidden)
+        }
     }
 
     @Test func targetDecorationDoesNotChangeGrabRegion() {

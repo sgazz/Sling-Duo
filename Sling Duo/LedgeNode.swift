@@ -16,6 +16,9 @@ final class LedgeNode: SKShapeNode {
         badge.position.y = -24
         addChild(badge)
     }
+    private var targetMarker: SKShapeNode?
+    private var targeted = false
+    private let platformBadge = SKLabelNode(fontNamed: "AvenirNext-Bold")
     private var motionCenter: CGFloat = 0
     private var motionTime: TimeInterval = 0
     private var motionActive = false
@@ -31,8 +34,7 @@ final class LedgeNode: SKShapeNode {
         let variants: [PlatformArtwork]
         switch style {
         case .depths: variants = isPrecision ? PlatformArtwork.precision : PlatformArtwork.normal
-        // The luminous rim still distinguishes precision platforms until this
-        // chapter receives its dedicated narrow-platform art set.
+        // Precision badges distinguish narrow platforms across every biome.
         case .crystal: variants = PlatformArtwork.crystal
         case .river:
             variants = usesMovingArtwork ? PlatformArtwork.riverMoving
@@ -48,6 +50,12 @@ final class LedgeNode: SKShapeNode {
         let stone = variants[index].makeSprite(width: size.width)
         stone.position.y = size.height / 2
         addChild(stone)
+        platformBadge.name = "platformTypeMarker"
+        platformBadge.fontSize = 11
+        platformBadge.verticalAlignmentMode = .center
+        platformBadge.position.y = -22
+        platformBadge.zPosition = 2
+        addChild(platformBadge)
         setTarget(false)
     }
 
@@ -129,6 +137,7 @@ final class LedgeNode: SKShapeNode {
     func configureMotion() {
         isMovingPlatform = true
         motionCenter = position.x
+        setTarget(targeted)
     }
 
     func advanceMotion(_ dt: TimeInterval) {
@@ -177,17 +186,43 @@ final class LedgeNode: SKShapeNode {
     }
 
     func setTarget(_ targeted: Bool) {
+        self.targeted = targeted
         motionActive = targeted && isMovingPlatform
-        removeAction(forKey: "targetPulse")
-        if isMovingPlatform {
-            strokeColor = .systemYellow
-        } else if isPrecisionPlatform {
-            strokeColor = SKColor(red: 1, green: 0.78, blue: 0.42, alpha: 1)
-        } else {
-            strokeColor = targeted
-                ? SKColor(red: 0.39, green: 0.96, blue: 0.8, alpha: 1)
-                : SKColor(red: 0.64, green: 0.74, blue: 0.98, alpha: 1)
+        let accent: SKColor = isMovingPlatform ? .systemYellow
+            : (isPrecisionPlatform ? SKColor(red: 1, green: 0.78, blue: 0.42, alpha: 1)
+               : SKColor(red: 0.39, green: 0.96, blue: 0.8, alpha: 1))
+
+        // Persistent type cues use different symbols as well as color.
+        platformBadge.text = isMovingPlatform ? "↔ 2×" : (isPrecisionPlatform ? "◆" : nil)
+        platformBadge.fontColor = accent
+        platformBadge.isHidden = !isMovingPlatform && !isPrecisionPlatform
+
+        guard targeted else {
+            targetMarker?.removeFromParent()
+            targetMarker = nil
+            return
         }
+        if targetMarker == nil {
+            let marker = SKShapeNode()
+            marker.name = "targetMarker"
+            marker.zPosition = 1
+            marker.lineWidth = 2.5
+            marker.lineCap = .round
+            marker.lineJoin = .round
+            marker.glowWidth = 1
+            // Mark the landing surface, not the transparent artwork bounds.
+            let halfWidth = size.width / 2 - 4
+            let y = size.height / 2 + 2
+            let path = CGMutablePath()
+            path.move(to: CGPoint(x: -halfWidth, y: y + 5))
+            path.addLine(to: CGPoint(x: -halfWidth, y: y))
+            path.addLine(to: CGPoint(x: halfWidth, y: y))
+            path.addLine(to: CGPoint(x: halfWidth, y: y + 5))
+            marker.path = path
+            addChild(marker)
+            targetMarker = marker
+        }
+        targetMarker?.strokeColor = accent
     }
 
 }

@@ -39,7 +39,6 @@ final class GameScene: SKScene, ObservableObject {
     private var trailClock: TimeInterval = 0
     private let backdrop = CaveBackdrop()
     private let aim = SKNode()
-    private let predictionRope = RubberRopeSystem()
     private var touchOrigin = CGPoint.zero
     private var jumperOrigin = CGPoint.zero
     private var draggedDistance: CGFloat = 0
@@ -328,7 +327,7 @@ final class GameScene: SKScene, ObservableObject {
 
 
         updateRunHUD()
-        rope.updateDragVisual(anchor: anchor.position, free: jumper.position)
+        rope.updateDragState(anchor: anchor.position, free: jumper.position)
         publishHUD()
     }
 
@@ -439,7 +438,7 @@ final class GameScene: SKScene, ObservableObject {
             }
             jumper.position = jumper.position + (target - jumper.position) * CGFloat(1 - exp(-20 * dt))
             velocity = .zero
-            rope.updateDragVisual(anchor: anchor.position, free: jumper.position)
+            rope.updateDragState(anchor: anchor.position, free: jumper.position)
             return
         }
         if flow.phase == .handoff {
@@ -449,7 +448,7 @@ final class GameScene: SKScene, ObservableObject {
             let fraction = min(1, CGFloat(handoffElapsed / JumpTuning.handoffDuration))
             let eased = fraction * fraction * (3 - 2 * fraction)
             jumper.position = handoffStart + (handoffTarget - handoffStart) * eased
-            rope.updateDragVisual(anchor: anchor.position, free: jumper.position)
+            rope.updateDragState(anchor: anchor.position, free: jumper.position)
             if flow.advance(dt, y: jumper.position.y, verticalSpeed: 0, targetY: nextLedge.grabPoint.y, realDelta: realDelta) == .launchPartner {
                 velocity = PartnerLaunch.velocity(from: jumper.position, anchor: anchor.position, target: nextLedge.grabPoint)
                 rope.reset()
@@ -729,18 +728,17 @@ final class GameScene: SKScene, ObservableObject {
     }
 
     // The guide advances the same spring, gravity and damping as the live jumper.
-    // Its rope has independent state so previewing cannot charge the live rope.
+    // Pure dynamics keep the guide independent of live rope state and rendering.
     private func updateAim() {
         aim.isHidden = drag == nil || draggedDistance <= 8
         guard !aim.isHidden else { return }
-        predictionRope.reset()
         var position = jumper.position
         var predictedVelocity = rope.slingshotVelocity(anchor: anchor.position, free: position, target: nextLedge.grabPoint)
         let dt = 1.0 / 120
         for dot in aim.children {
             for _ in 0..<6 {
                 var force = GameConstants.gravity
-                force += predictionRope.springForce(anchor: anchor.position, free: position, velocity: predictedVelocity, deltaTime: dt)
+                force += RopeDynamics.force(anchor: anchor.position, free: position, velocity: predictedVelocity)
                 predictedVelocity += force * CGFloat(dt)
                 predictedVelocity = predictedVelocity * CGFloat(pow(Double(GameConstants.damping), dt * 60))
                 position = position + predictedVelocity * CGFloat(dt)

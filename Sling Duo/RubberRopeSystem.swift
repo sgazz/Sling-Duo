@@ -45,11 +45,10 @@ final class RubberRopeSystem {
         tension = 0
     }
 
-    func updateDragVisual(anchor: CGPoint, free: CGPoint) {
+    func updateDragState(anchor: CGPoint, free: CGPoint) {
         let distance = (free - anchor).length
         tension = min(GameConstants.maxTension, distance / GameConstants.maxDragDistance)
         overstretchTime = 0
-        updateVisual(anchor: anchor, free: free, distance: distance)
     }
 
     func pulse() {
@@ -80,10 +79,10 @@ final class RubberRopeSystem {
         ]), withKey: "ropeRelease")
     }
 
+    // Physics steps update failure timing only; paths are built by render().
     func springForce(anchor: CGPoint, free: CGPoint, velocity: CGVector, deltaTime: TimeInterval) -> CGVector {
         let offset = anchor - free
         let distance = offset.length
-        updateVisual(anchor: anchor, free: free, distance: distance)
 
         guard distance > GameConstants.restLength + GameConstants.ropeSlackBeforePull else {
             overstretchTime = 0
