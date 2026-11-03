@@ -114,7 +114,15 @@ final class Sling_DuoUITests: XCTestCase {
         let depths = app.buttons["cave.depths"]
         XCTAssertTrue(depths.waitForExistence(timeout: 3))
         depths.tap()
-        XCTAssertTrue(app.staticTexts["resumeCountdown"].waitForExistence(timeout: 5))
+        if !app.staticTexts["resumeCountdown"].waitForExistence(timeout: 5) {
+            // A fresh simulator has never completed onboarding, even though the
+            // initial escape fixture bypasses it. Complete the real map flow.
+            let tutorial = app.buttons["finishTutorial"]
+            XCTAssertTrue(tutorial.exists)
+            if !tutorial.isHittable { app.swipeUp() }
+            tutorial.tap()
+            XCTAssertTrue(app.staticTexts["resumeCountdown"].waitForExistence(timeout: 5))
+        }
         expectation(for: gone, evaluatedWith: app.staticTexts["resumeCountdown"])
         waitForExpectations(timeout: 5)
         XCTAssertFalse(again.exists)

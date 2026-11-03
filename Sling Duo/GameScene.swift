@@ -49,6 +49,7 @@ final class GameScene: SKScene, ObservableObject {
     private var nextLedge: LedgeNode!
     private var spawner = LedgeSpawner(sceneWidth: 390)
     private var velocity = CGVector.zero
+    private var visualTime: TimeInterval = 0
     private var previousTime: TimeInterval = 0
     private var accumulator: TimeInterval = 0
     private var drag: CGPoint?
@@ -293,6 +294,8 @@ final class GameScene: SKScene, ObservableObject {
     }
 
     private func reset() {
+        visualTime = 0
+        speed = 1
         removeAllActions()
         escapeSummary = nil
         runSummary = nil
@@ -386,8 +389,14 @@ final class GameScene: SKScene, ObservableObject {
             previousTime = currentTime
             if hudClock >= 0.1 { publishHUD(); hudClock = 0 }
         }
-        guard !ended, !progress.awaitingChoice else { return }
         let elapsed = previousTime == 0 ? 1.0 / 60 : max(0, min(1.0 / 15, currentTime - previousTime))
+        // Exit choreography runs in real time. Gameplay actions, personality and
+        // rope oscillation share the Turbo/Endless clock while a run is active.
+        if ended || progress.awaitingChoice {
+            speed = 1
+            visualTime += elapsed
+            return
+        }
         hudClock += elapsed
         if flow.phase != .ready || flow.deadlineActive { progress.advance(elapsed) }
         if turboEnabled && (flow.phase != .ready || flow.deadlineActive) {
@@ -396,7 +405,10 @@ final class GameScene: SKScene, ObservableObject {
         // Turbo and Endless are alternate pacing systems.  Use the faster one,
         // rather than multiplying them, to preserve the shared 3× safety cap.
         let multiplier = max(turboEnabled ? tempo.multiplier : 1, endlessTempo.multiplier)
-        accumulator += elapsed * multiplier
+        speed = multiplier
+        let visualDelta = elapsed * multiplier
+        visualTime += visualDelta
+        accumulator += visualDelta
         let step = 1.0 / 120
         while accumulator >= step {
             simulate(step, realDelta: step / multiplier)
@@ -411,19 +423,25 @@ final class GameScene: SKScene, ObservableObject {
         }
         fillUpcoming()
         updateRescueMeter()
-        happyTime = max(0, happyTime - elapsed)
+        happyTime = max(0, happyTime - visualDelta)
         anchor.updatePersonality(happyTime > 0 ? .happy : .calm,
-                                 lookingAt: jumper.position, deltaTime: elapsed)
+                                 lookingAt: jumper.position, deltaTime: visualDelta)
         let jumperExpression: ClimberNode.Expression = drag != nil
             ? .strained : (flow.phase == .rescue ? .dizzy : (flight ? .flying : .calm))
-        jumper.updatePersonality(jumperExpression, lookingAt: nextLedge.grabPoint, deltaTime: elapsed)
-        rope.render(anchor: anchor.ropeAttachment, free: jumper.ropeAttachment)
+        jumper.updatePersonality(jumperExpression, lookingAt: nextLedge.grabPoint, deltaTime: visualDelta)
         updateAim()
-        updateTrail(elapsed)
-        backdrop.update(travel: gameCamera.position.y - size.height / 2)
+        updateTrail(visualDelta)
         for ledge in children.compactMap({ $0 as? LedgeNode }) where ledge !== current && ledge !== nextLedge && ledge.position.y < gameCamera.position.y - size.height / 2 - 80 {
             ledge.removeFromParent()
         }
+    }
+
+    // SpriteKit has now evaluated actions, physics and constraints. Reading
+    // transformed belt points here eliminates landing/exit one-frame rope lag.
+    override func didFinishUpdate() {
+        guard ready, !userPaused, appActive else { return }
+        rope.render(anchor: anchor.ropeAttachment, free: jumper.ropeAttachment, time: visualTime)
+        backdrop.update(travel: gameCamera.position.y - size.height / 2)
     }
 
     private func publishHUD() {
@@ -742,21 +760,17 @@ final class GameScene: SKScene, ObservableObject {
         coral.updatePersonality(.happy, lookingAt: current.grabPoint, deltaTime: 0)
 
 
+        speed = 1
         // Bring both partners to the exit before offering the endless continuation.
         anchor.run(.move(to: current.grabPoint + CGVector(dx: -20, dy: 5), duration: 0.45))
         jumper.run(.move(to: current.grabPoint + CGVector(dx: 20, dy: 5), duration: 0.45))
         gameCamera.run(.moveTo(y: max(gameCamera.position.y, current.position.y + size.height * 0.12), duration: 0.4))
-        run(.customAction(withDuration: 0.5) { [weak self] _, _ in
-            guard let self else { return }
-            self.rope.render(anchor: self.anchor.ropeAttachment, free: self.jumper.ropeAttachment)
-        }, withKey: "exitRope")
         sound.play(.grab, step: 4)
         UINotificationFeedbackGenerator().notificationOccurred(.success)
         run(.sequence([.wait(forDuration: 0.55), .run { [weak self] in
             self?.current.collectDawnheartFragment()
         }, .wait(forDuration: 0.58), .run { [weak self] in
             guard let self else { return }
-            self.rope.render(anchor: self.anchor.ropeAttachment, free: self.jumper.ropeAttachment)
             self.publishHUD()
             self.escapeSummary = EscapeSummary(points: self.points, seconds: self.progress.seconds,
                 longestCombo: self.progress.longestCombo, turbo: self.progress.usedTurbo, cave: self.cave)

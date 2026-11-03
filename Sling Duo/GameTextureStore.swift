@@ -48,6 +48,10 @@ final class GameTextureStore {
         guard let data = NSDataAsset(name: name + "Texture"), let image = UIImage(data: data.data) else {
             preconditionFailure("Missing or invalid runtime texture: \(name)Texture")
         }
+        let expected = VisualManifest.entry(name).runtimePixels
+        precondition(Int(image.size.width * image.scale) == Int(expected[0]) &&
+                     Int(image.size.height * image.scale) == Int(expected[1]),
+                     "Texture dimensions do not match VisualManifest: \(name)")
         let texture = SKTexture(image: image)
         texture.filteringMode = .linear
         originals[name] = texture

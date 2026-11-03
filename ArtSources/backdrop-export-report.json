@@ -1,0 +1,146 @@
+[
+  {
+    "name": "AncientRuinsBankOverlay",
+    "size": [
+      1024,
+      1536
+    ],
+    "edgeBand": 96,
+    "edgePixelsIdentical": true
+  },
+  {
+    "name": "AncientRuinsBaseTile",
+    "size": [
+      1024,
+      1536
+    ],
+    "edgeBand": 96,
+    "edgePixelsIdentical": true
+  },
+  {
+    "name": "CrystalCavernBankOverlay",
+    "size": [
+      1024,
+      1536
+    ],
+    "edgeBand": 96,
+    "edgePixelsIdentical": true
+  },
+  {
+    "name": "CrystalCavernBaseTile",
+    "size": [
+      1024,
+      1536
+    ],
+    "edgeBand": 96,
+    "edgePixelsIdentical": true
+  },
+  {
+    "name": "DaybreakExitBankOverlay",
+    "size": [
+      1024,
+      1536
+    ],
+    "edgeBand": 96,
+    "edgePixelsIdentical": true
+  },
+  {
+    "name": "DaybreakExitBaseTile",
+    "size": [
+      1024,
+      1536
+    ],
+    "edgeBand": 96,
+    "edgePixelsIdentical": true
+  },
+  {
+    "name": "FrozenRiftBankOverlay",
+    "size": [
+      1024,
+      1536
+    ],
+    "edgeBand": 96,
+    "edgePixelsIdentical": true
+  },
+  {
+    "name": "FrozenRiftBaseTile",
+    "size": [
+      1024,
+      1536
+    ],
+    "edgeBand": 96,
+    "edgePixelsIdentical": true
+  },
+  {
+    "name": "GlowrootGrottoBankOverlay",
+    "size": [
+      1024,
+      1536
+    ],
+    "edgeBand": 96,
+    "edgePixelsIdentical": true
+  },
+  {
+    "name": "GlowrootGrottoBaseTile",
+    "size": [
+      1024,
+      1536
+    ],
+    "edgeBand": 96,
+    "edgePixelsIdentical": true
+  },
+  {
+    "name": "RiverBankOverlay",
+    "size": [
+      1024,
+      1536
+    ],
+    "edgeBand": 96,
+    "edgePixelsIdentical": true
+  },
+  {
+    "name": "RiverWaterTile",
+    "size": [
+      1024,
+      1536
+    ],
+    "edgeBand": 96,
+    "edgePixelsIdentical": true
+  },
+  {
+    "name": "StormChasmBankOverlay",
+    "size": [
+      1024,
+      1536
+    ],
+    "edgeBand": 96,
+    "edgePixelsIdentical": true
+  },
+  {
+    "name": "StormChasmBaseTile",
+    "size": [
+      1024,
+      1536
+    ],
+    "edgeBand": 96,
+    "edgePixelsIdentical": true
+  },
+  {
+    "name": "VolcanicPassageBankOverlay",
+    "size": [
+      1024,
+      1536
+    ],
+    "edgeBand": 96,
+    "edgePixelsIdentical": true
+  },
+  {
+    "name": "VolcanicPassageBaseTile",
+    "size": [
+      1024,
+      1536
+    ],
+    "edgeBand": 96,
+    "edgePixelsIdentical": true
+  }
+]

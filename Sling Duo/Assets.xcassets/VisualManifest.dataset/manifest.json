@@ -1,0 +1,1125 @@
+{
+  "version": 1,
+  "coordinates": "crop and pivot: normalized top-left; regions: normalized SpriteKit bottom-left",
+  "textures": {
+    "AncientRuinsBankOverlay": {
+      "runtimePixels": [
+        1024,
+        1536
+      ],
+      "sourcePixels": [
+        1024,
+        1536
+      ],
+      "regions": {}
+    },
+    "AncientRuinsBaseTile": {
+      "runtimePixels": [
+        1024,
+        1536
+      ],
+      "sourcePixels": [
+        1024,
+        1536
+      ],
+      "regions": {}
+    },
+    "AncientRuinsDecorSheet": {
+      "runtimePixels": [
+        1024,
+        1536
+      ],
+      "sourcePixels": [
+        1024,
+        1536
+      ],
+      "regions": {
+        "rubble": [
+          0.02,
+          0.69,
+          0.96,
+          0.28
+        ],
+        "rune": [
+          0.02,
+          0.35,
+          0.46,
+          0.29
+        ],
+        "vines": [
+          0.52,
+          0.34,
+          0.45,
+          0.3
+        ],
+        "pottery": [
+          0.02,
+          0.02,
+          0.96,
+          0.27
+        ]
+      }
+    },
+    "CaveFar": {
+      "runtimePixels": [
+        1024,
+        1536
+      ],
+      "sourcePixels": [
+        1024,
+        1536
+      ],
+      "regions": {}
+    },
+    "CaveForeground": {
+      "runtimePixels": [
+        1080,
+        1920
+      ],
+      "sourcePixels": [
+        1080,
+        1920
+      ],
+      "regions": {
+        "foreground": [
+          0,
+          0.18,
+          1,
+          0.64
+        ]
+      }
+    },
+    "CaveMid": {
+      "runtimePixels": [
+        1024,
+        1536
+      ],
+      "sourcePixels": [
+        1024,
+        1536
+      ],
+      "regions": {}
+    },
+    "CrystalCavernBankOverlay": {
+      "runtimePixels": [
+        1024,
+        1536
+      ],
+      "sourcePixels": [
+        1024,
+        1536
+      ],
+      "regions": {}
+    },
+    "CrystalCavernBaseTile": {
+      "runtimePixels": [
+        1024,
+        1536
+      ],
+      "sourcePixels": [
+        1024,
+        1536
+      ],
+      "regions": {}
+    },
+    "CrystalCavernDecorSheet": {
+      "runtimePixels": [
+        1024,
+        1536
+      ],
+      "sourcePixels": [
+        1024,
+        1536
+      ],
+      "regions": {
+        "violetCluster": [
+          0.02,
+          0.69,
+          0.46,
+          0.28
+        ],
+        "cyanCluster": [
+          0.51,
+          0.69,
+          0.46,
+          0.28
+        ],
+        "shards": [
+          0.02,
+          0.32,
+          0.46,
+          0.3
+        ],
+        "debris": [
+          0.51,
+          0.03,
+          0.46,
+          0.27
+        ]
+      }
+    },
+    "CrystalPlatformNormal01": {
+      "runtimePixels": [
+        768,
+        384
+      ],
+      "sourcePixels": [
+        1774,
+        887
+      ],
+      "regions": {},
+      "crop": [
+        0.02367531003382187,
+        0.3438556933483653,
+        0.9526493799323562,
+        0.40586245772266066
+      ],
+      "pivot": [
+        0.5,
+        0.46561443066516345
+      ],
+      "landingLine": 0.46561443066516345
+    },
+    "DawnheartFragment": {
+      "runtimePixels": [
+        256,
+        256
+      ],
+      "sourcePixels": [
+        1254,
+        1254
+      ],
+      "regions": {}
+    },
+    "DaybreakExitBankOverlay": {
+      "runtimePixels": [
+        1024,
+        1536
+      ],
+      "sourcePixels": [
+        1024,
+        1536
+      ],
+      "regions": {}
+    },
+    "DaybreakExitBaseTile": {
+      "runtimePixels": [
+        1024,
+        1536
+      ],
+      "sourcePixels": [
+        1024,
+        1536
+      ],
+      "regions": {}
+    },
+    "DaybreakExitDecorSheet": {
+      "runtimePixels": [
+        1024,
+        1536
+      ],
+      "sourcePixels": [
+        1024,
+        1536
+      ],
+      "regions": {
+        "flowers": [
+          0.02,
+          0.69,
+          0.96,
+          0.28
+        ],
+        "roots": [
+          0.02,
+          0.36,
+          0.96,
+          0.28
+        ],
+        "vines": [
+          0.02,
+          0.02,
+          0.46,
+          0.29
+        ],
+        "motes": [
+          0.52,
+          0.02,
+          0.46,
+          0.29
+        ]
+      }
+    },
+    "DaybreakPlatformNormal01": {
+      "runtimePixels": [
+        768,
+        256
+      ],
+      "sourcePixels": [
+        2172,
+        724
+      ],
+      "regions": {},
+      "crop": [
+        0.014732965009208104,
+        0.15883977900552487,
+        0.9705340699815838,
+        0.649171270718232
+      ],
+      "pivot": [
+        0.5,
+        0.35359116022099446
+      ],
+      "landingLine": 0.35359116022099446
+    },
+    "FrozenPlatformNormal01": {
+      "runtimePixels": [
+        768,
+        288
+      ],
+      "sourcePixels": [
+        2048,
+        768
+      ],
+      "regions": {},
+      "crop": [
+        0.015625,
+        0.13671875,
+        0.96875,
+        0.7291666666666666
+      ],
+      "pivot": [
+        0.5,
+        0.35546875
+      ],
+      "landingLine": 0.35546875
+    },
+    "FrozenRiftBankOverlay": {
+      "runtimePixels": [
+        1024,
+        1536
+      ],
+      "sourcePixels": [
+        1024,
+        1536
+      ],
+      "regions": {}
+    },
+    "FrozenRiftBaseTile": {
+      "runtimePixels": [
+        1024,
+        1536
+      ],
+      "sourcePixels": [
+        1024,
+        1536
+      ],
+      "regions": {}
+    },
+    "FrozenRiftDecorSheet": {
+      "runtimePixels": [
+        1024,
+        1536
+      ],
+      "sourcePixels": [
+        1024,
+        1536
+      ],
+      "regions": {
+        "boulder": [
+          0.02,
+          0.69,
+          0.46,
+          0.28
+        ],
+        "crystal": [
+          0.52,
+          0.69,
+          0.46,
+          0.28
+        ],
+        "frost": [
+          0.02,
+          0.34,
+          0.46,
+          0.29
+        ],
+        "debris": [
+          0.52,
+          0.03,
+          0.46,
+          0.28
+        ]
+      }
+    },
+    "GlowrootGrottoBankOverlay": {
+      "runtimePixels": [
+        1024,
+        1536
+      ],
+      "sourcePixels": [
+        1024,
+        1536
+      ],
+      "regions": {}
+    },
+    "GlowrootGrottoBaseTile": {
+      "runtimePixels": [
+        1024,
+        1536
+      ],
+      "sourcePixels": [
+        1024,
+        1536
+      ],
+      "regions": {}
+    },
+    "GlowrootGrottoDecorSheet": {
+      "runtimePixels": [
+        1024,
+        1536
+      ],
+      "sourcePixels": [
+        1024,
+        1536
+      ],
+      "regions": {
+        "mushrooms": [
+          0.02,
+          0.68,
+          0.46,
+          0.29
+        ],
+        "roots": [
+          0.52,
+          0.68,
+          0.46,
+          0.29
+        ],
+        "boulder": [
+          0.02,
+          0.02,
+          0.46,
+          0.59
+        ],
+        "spores": [
+          0.52,
+          0.02,
+          0.46,
+          0.59
+        ]
+      }
+    },
+    "GlowrootPlatformNormal01": {
+      "runtimePixels": [
+        768,
+        328
+      ],
+      "sourcePixels": [
+        1920,
+        819
+      ],
+      "regions": {},
+      "crop": [
+        0.016666666666666666,
+        0.19536019536019536,
+        0.9666666666666667,
+        0.5738705738705738
+      ],
+      "pivot": [
+        0.5,
+        0.36752136752136755
+      ],
+      "landingLine": 0.36752136752136755
+    },
+    "HeroCyanAnchored": {
+      "runtimePixels": [
+        384,
+        368
+      ],
+      "sourcePixels": [
+        1282,
+        1227
+      ],
+      "regions": {},
+      "crop": [
+        0.10842433697347893,
+        0.10920945395273024,
+        0.7847113884555382,
+        0.8166259168704156
+      ],
+      "pivot": [
+        0.5,
+        0.6927465362673186
+      ]
+    },
+    "HeroCyanCatch": {
+      "runtimePixels": [
+        384,
+        368
+      ],
+      "sourcePixels": [
+        1282,
+        1227
+      ],
+      "regions": {},
+      "crop": [
+        0.031201248049921998,
+        0.14832925835370822,
+        0.9461778471138845,
+        0.7766911165444172
+      ],
+      "pivot": [
+        0.5,
+        0.5949470252648736
+      ]
+    },
+    "HeroCyanFlight": {
+      "runtimePixels": [
+        384,
+        368
+      ],
+      "sourcePixels": [
+        1282,
+        1227
+      ],
+      "regions": {},
+      "crop": [
+        0.0530421216848674,
+        0.10187449062754686,
+        0.9009360374414976,
+        0.8280358598207009
+      ],
+      "pivot": [
+        0.5,
+        0.6438467807660961
+      ]
+    },
+    "HeroCyanIdle": {
+      "runtimePixels": [
+        384,
+        368
+      ],
+      "sourcePixels": [
+        1282,
+        1227
+      ],
+      "regions": {},
+      "crop": [
+        0.0686427457098284,
+        0.1100244498777506,
+        0.858814352574103,
+        0.8174409127954361
+      ],
+      "pivot": [
+        0.5,
+        0.6438467807660961
+      ]
+    },
+    "HeroCyanMiss": {
+      "runtimePixels": [
+        384,
+        368
+      ],
+      "sourcePixels": [
+        1282,
+        1227
+      ],
+      "regions": {},
+      "crop": [
+        0.07332293291731669,
+        0.13202933985330073,
+        0.8985959438377535,
+        0.7571312143439283
+      ],
+      "pivot": [
+        0.5,
+        0.6438467807660961
+      ]
+    },
+    "HeroCyanPull": {
+      "runtimePixels": [
+        384,
+        368
+      ],
+      "sourcePixels": [
+        1282,
+        1227
+      ],
+      "regions": {},
+      "crop": [
+        0.06162246489859594,
+        0.08312958435207823,
+        0.8806552262090483,
+        0.8549307253463733
+      ],
+      "pivot": [
+        0.5,
+        0.6112469437652812
+      ]
+    },
+    "HeroOrangeAnchored": {
+      "runtimePixels": [
+        384,
+        351
+      ],
+      "sourcePixels": [
+        1312,
+        1199
+      ],
+      "regions": {},
+      "crop": [
+        0.06478658536585366,
+        0.05921601334445371,
+        0.875,
+        0.8732276897414513
+      ],
+      "pivot": [
+        0.5,
+        0.658882402001668
+      ]
+    },
+    "HeroOrangeCatch": {
+      "runtimePixels": [
+        384,
+        351
+      ],
+      "sourcePixels": [
+        1311,
+        1200
+      ],
+      "regions": {},
+      "crop": [
+        0.015255530129672006,
+        0.08,
+        0.9755911517925248,
+        0.8291666666666667
+      ],
+      "pivot": [
+        0.5,
+        0.625
+      ]
+    },
+    "HeroOrangeFlight": {
+      "runtimePixels": [
+        384,
+        351
+      ],
+      "sourcePixels": [
+        1311,
+        1200
+      ],
+      "regions": {},
+      "crop": [
+        0.04729214340198322,
+        0.060833333333333336,
+        0.9221967963386728,
+        0.87
+      ],
+      "pivot": [
+        0.5,
+        0.65
+      ]
+    },
+    "HeroOrangeIdle": {
+      "runtimePixels": [
+        384,
+        351
+      ],
+      "sourcePixels": [
+        1311,
+        1200
+      ],
+      "regions": {},
+      "crop": [
+        0.05644546147978642,
+        0.06416666666666666,
+        0.8871090770404272,
+        0.8633333333333333
+      ],
+      "pivot": [
+        0.5,
+        0.65
+      ]
+    },
+    "HeroOrangeMiss": {
+      "runtimePixels": [
+        384,
+        351
+      ],
+      "sourcePixels": [
+        1311,
+        1200
+      ],
+      "regions": {},
+      "crop": [
+        0.05186880244088482,
+        0.07166666666666667,
+        0.9168573607932876,
+        0.8641666666666666
+      ],
+      "pivot": [
+        0.5,
+        0.6416666666666667
+      ]
+    },
+    "HeroOrangePull": {
+      "runtimePixels": [
+        384,
+        351
+      ],
+      "sourcePixels": [
+        1311,
+        1200
+      ],
+      "regions": {},
+      "crop": [
+        0.043478260869565216,
+        0.060833333333333336,
+        0.9153318077803204,
+        0.8475
+      ],
+      "pivot": [
+        0.5,
+        0.6333333333333333
+      ]
+    },
+    "PlatformNormal01": {
+      "runtimePixels": [
+        768,
+        307
+      ],
+      "sourcePixels": [
+        1983,
+        793
+      ],
+      "regions": {},
+      "crop": [
+        0.08724155320221887,
+        0.2648171500630517,
+        0.8260211800302572,
+        0.5498108448928121
+      ],
+      "pivot": [
+        0.5002521432173475,
+        0.4297604035308953
+      ],
+      "landingLine": 0.4297604035308953
+    },
+    "PlatformNormal02": {
+      "runtimePixels": [
+        768,
+        384
+      ],
+      "sourcePixels": [
+        1774,
+        887
+      ],
+      "regions": {},
+      "crop": [
+        0.05129650507328072,
+        0.31228861330326946,
+        0.8979706877113867,
+        0.5388951521984217
+      ],
+      "pivot": [
+        0.5002818489289741,
+        0.4739571589627959
+      ],
+      "landingLine": 0.4739571589627959
+    },
+    "PlatformNormal03": {
+      "runtimePixels": [
+        768,
+        384
+      ],
+      "sourcePixels": [
+        1774,
+        887
+      ],
+      "regions": {},
+      "crop": [
+        0.0794813979706877,
+        0.3100338218714769,
+        0.8410372040586246,
+        0.5400225479143179
+      ],
+      "pivot": [
+        0.5,
+        0.4720405862457723
+      ],
+      "landingLine": 0.4720405862457723
+    },
+    "PlatformPrecision01": {
+      "runtimePixels": [
+        768,
+        384
+      ],
+      "sourcePixels": [
+        1774,
+        887
+      ],
+      "regions": {},
+      "crop": [
+        0.1555806087936866,
+        0.342728297632469,
+        0.6865839909808342,
+        0.46561443066516345
+      ],
+      "pivot": [
+        0.49887260428410374,
+        0.482412626832018
+      ],
+      "landingLine": 0.482412626832018
+    },
+    "PlatformPrecision02": {
+      "runtimePixels": [
+        768,
+        384
+      ],
+      "sourcePixels": [
+        1774,
+        887
+      ],
+      "regions": {},
+      "crop": [
+        0.20180383314543404,
+        0.36753100338218714,
+        0.5963923337091319,
+        0.4250281848928974
+      ],
+      "pivot": [
+        0.5,
+        0.4950394588500564
+      ],
+      "landingLine": 0.4950394588500564
+    },
+    "PlatformPrecision03": {
+      "runtimePixels": [
+        768,
+        384
+      ],
+      "sourcePixels": [
+        1774,
+        887
+      ],
+      "regions": {},
+      "crop": [
+        0.03325817361894025,
+        0.27959413754227735,
+        0.9329199549041713,
+        0.52423900789177
+      ],
+      "pivot": [
+        0.4997181510710259,
+        0.4368658399098083
+      ],
+      "landingLine": 0.4368658399098083
+    },
+    "RiverBankOverlay": {
+      "runtimePixels": [
+        1024,
+        1536
+      ],
+      "sourcePixels": [
+        1024,
+        1536
+      ],
+      "regions": {}
+    },
+    "RiverDecorSheet": {
+      "runtimePixels": [
+        1024,
+        1536
+      ],
+      "sourcePixels": [
+        1024,
+        1536
+      ],
+      "regions": {
+        "boulders": [
+          0.02,
+          0.74,
+          0.96,
+          0.24
+        ],
+        "mushrooms": [
+          0.38,
+          0.47,
+          0.58,
+          0.26
+        ],
+        "crystals": [
+          0.05,
+          0.23,
+          0.59,
+          0.28
+        ],
+        "debris": [
+          0.02,
+          0.01,
+          0.96,
+          0.2
+        ]
+      }
+    },
+    "RiverPlatformMoving01": {
+      "runtimePixels": [
+        768,
+        307
+      ],
+      "sourcePixels": [
+        1983,
+        793
+      ],
+      "regions": {},
+      "crop": [
+        0.07967725668179526,
+        0.23959646910466584,
+        0.8421583459404942,
+        0.5359394703656999
+      ],
+      "pivot": [
+        0.5007564296520424,
+        0.4003783102143758
+      ],
+      "landingLine": 0.4003783102143758
+    },
+    "RiverPlatformNormal01": {
+      "runtimePixels": [
+        768,
+        307
+      ],
+      "sourcePixels": [
+        1983,
+        793
+      ],
+      "regions": {},
+      "crop": [
+        0.011094301563287948,
+        0.27742749054224464,
+        0.9773071104387292,
+        0.5170239596469105
+      ],
+      "pivot": [
+        0.49974785678265254,
+        0.43253467843631777
+      ],
+      "landingLine": 0.43253467843631777
+    },
+    "RiverPlatformPrecision01": {
+      "runtimePixels": [
+        768,
+        307
+      ],
+      "sourcePixels": [
+        1983,
+        793
+      ],
+      "regions": {},
+      "crop": [
+        0.20171457387796268,
+        0.2837326607818411,
+        0.5849722642460918,
+        0.44766708701134933
+      ],
+      "pivot": [
+        0.49420070600100857,
+        0.4180327868852459
+      ],
+      "landingLine": 0.4180327868852459
+    },
+    "RiverWaterTile": {
+      "runtimePixels": [
+        1024,
+        1536
+      ],
+      "sourcePixels": [
+        1024,
+        1536
+      ],
+      "regions": {}
+    },
+    "RuinsPlatformNormal01": {
+      "runtimePixels": [
+        768,
+        384
+      ],
+      "sourcePixels": [
+        1774,
+        887
+      ],
+      "regions": {},
+      "crop": [
+        0.014092446448703494,
+        0.3043968432919955,
+        0.971815107102593,
+        0.496054114994363
+      ],
+      "pivot": [
+        0.5,
+        0.4532130777903044
+      ],
+      "landingLine": 0.4532130777903044
+    },
+    "StormChasmBankOverlay": {
+      "runtimePixels": [
+        1024,
+        1536
+      ],
+      "sourcePixels": [
+        1024,
+        1536
+      ],
+      "regions": {}
+    },
+    "StormChasmBaseTile": {
+      "runtimePixels": [
+        1024,
+        1536
+      ],
+      "sourcePixels": [
+        1024,
+        1536
+      ],
+      "regions": {}
+    },
+    "StormChasmDecorSheet": {
+      "runtimePixels": [
+        1024,
+        1536
+      ],
+      "sourcePixels": [
+        1024,
+        1536
+      ],
+      "regions": {
+        "boulders": [
+          0.02,
+          0.69,
+          0.46,
+          0.28
+        ],
+        "lightning": [
+          0.52,
+          0.69,
+          0.46,
+          0.28
+        ],
+        "mist": [
+          0.02,
+          0.34,
+          0.46,
+          0.29
+        ],
+        "debris": [
+          0.52,
+          0.03,
+          0.46,
+          0.28
+        ]
+      }
+    },
+    "StormPlatformNormal01": {
+      "runtimePixels": [
+        768,
+        256
+      ],
+      "sourcePixels": [
+        2172,
+        724
+      ],
+      "regions": {},
+      "crop": [
+        0.014732965009208104,
+        0.15883977900552487,
+        0.9705340699815838,
+        0.649171270718232
+      ],
+      "pivot": [
+        0.5,
+        0.35359116022099446
+      ],
+      "landingLine": 0.35359116022099446
+    },
+    "VolcanicPassageBankOverlay": {
+      "runtimePixels": [
+        1024,
+        1536
+      ],
+      "sourcePixels": [
+        1024,
+        1536
+      ],
+      "regions": {}
+    },
+    "VolcanicPassageBaseTile": {
+      "runtimePixels": [
+        1024,
+        1536
+      ],
+      "sourcePixels": [
+        1024,
+        1536
+      ],
+      "regions": {}
+    },
+    "VolcanicPassageDecorSheet": {
+      "runtimePixels": [
+        1024,
+        1536
+      ],
+      "sourcePixels": [
+        1024,
+        1536
+      ],
+      "regions": {
+        "basalt": [
+          0.02,
+          0.69,
+          0.46,
+          0.28
+        ],
+        "obsidian": [
+          0.52,
+          0.69,
+          0.46,
+          0.28
+        ],
+        "embers": [
+          0.02,
+          0.34,
+          0.46,
+          0.29
+        ],
+        "lavaDebris": [
+          0.52,
+          0.03,
+          0.46,
+          0.28
+        ]
+      }
+    },
+    "VolcanicPlatformNormal01": {
+      "runtimePixels": [
+        768,
+        384
+      ],
+      "sourcePixels": [
+        1774,
+        887
+      ],
+      "regions": {},
+      "crop": [
+        0.016741071428571428,
+        0.3076171875,
+        0.9654017857142857,
+        0.41015625
+      ],
+      "pivot": [
+        0.4994419642857143,
+        0.4306640625
+      ],
+      "landingLine": 0.4306640625
+    }
+  }
+}

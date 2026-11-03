@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 """Rebuild runtime textures and UI illustrations from ArtSources (Pillow required).
 
-UV crops, belt pivots and landing geometry intentionally stay in original master
-coordinates in Swift. Full canvases are resized, never trimmed or recentered.
+UV crops, belt pivots and landing geometry stay normalized in VisualManifest. Full canvases are resized, never trimmed or recentered.
 """
 from pathlib import Path
 import json
@@ -35,3 +34,8 @@ for source in sorted((ROOT / 'ArtSources').glob('*.png')):
                        after_png_bytes=(target / 'texture.png').stat().st_size))
 (ROOT / 'ArtSources' / 'texture-export-report.json').write_text(json.dumps(report, indent=2) + '\n')
 print(f'Rebuilt {len(report)} runtime textures; UI hero illustrations retain 640px canvases.')
+
+# Any export-size change must be reviewed against the manifest, never silently
+# accepted by an exporter rewriting its own expected dimensions.
+from validate_visual_manifest import validate
+validate()
