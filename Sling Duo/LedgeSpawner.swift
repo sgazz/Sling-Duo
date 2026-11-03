@@ -106,6 +106,12 @@ final class LedgeSpawner {
         }
         return result
     }
+
+    func nextLedge(below ledge: LedgeNode, score: Int) -> LedgeNode {
+        let result = nextLedge(above: ledge, score: score)
+        result.position.y = ledge.position.y - abs(result.position.y - ledge.position.y)
+        return result
+    }
     private func trickPlatform(opposite bonus: LedgeNode, above base: LedgeNode) -> LedgeNode {
         let width = min(72, sceneWidth * 0.24)
         let low = max(width / 2 + 8, base.position.x - 135)

@@ -134,16 +134,27 @@ enum RopeDynamics {
         return direction * max(0, pull)
     }
     static func step(position: inout CGPoint, velocity: inout CGVector, anchor: CGPoint,
-                     dt: TimeInterval, steeringSpeed: CGFloat = 0) {
+                     dt: TimeInterval, steeringSpeed: CGFloat = 0,
+                     damping: CGFloat = GameConstants.damping,
+                     horizontalDamping: CGFloat? = nil,
+                     verticalDamping: CGFloat? = nil) {
         let actualVelocity = velocity + CGVector(dx: steeringSpeed, dy: 0)
         let force = GameConstants.gravity + self.force(anchor: anchor, free: position, velocity: actualVelocity)
-        integrate(position: &position, velocity: &velocity, force: force, dt: dt, steeringSpeed: steeringSpeed)
+        integrate(position: &position, velocity: &velocity, force: force, dt: dt,
+                  steeringSpeed: steeringSpeed, damping: damping,
+                  horizontalDamping: horizontalDamping, verticalDamping: verticalDamping)
     }
 
     static func integrate(position: inout CGPoint, velocity: inout CGVector, force: CGVector,
-                          dt: TimeInterval, steeringSpeed: CGFloat = 0) {
+                          dt: TimeInterval, steeringSpeed: CGFloat = 0,
+                          damping: CGFloat = GameConstants.damping,
+                          horizontalDamping: CGFloat? = nil,
+                          verticalDamping: CGFloat? = nil) {
         velocity += force * CGFloat(dt)
-        velocity = velocity * CGFloat(pow(Double(GameConstants.damping), dt * 60))
+        let horizontal = horizontalDamping ?? damping
+        let vertical = verticalDamping ?? damping
+        velocity.dx *= CGFloat(pow(Double(horizontal), dt * 60))
+        velocity.dy *= CGFloat(pow(Double(vertical), dt * 60))
         position = position + (velocity + CGVector(dx: steeringSpeed, dy: 0)) * CGFloat(dt)
     }
 
@@ -184,6 +195,14 @@ enum ClimbCamera {
         let lead = inFlight ? max(0, min(60, (jumperY - anchorY) * 0.25)) : 0
         let target = max(height / 2, anchorY + height * 0.15 + lead)
         return max(current, current + (target - current) * CGFloat(1 - exp(-JumpTuning.cameraFollowRate * dt)))
+    }
+}
+
+enum DescentCamera {
+    static func nextY(current: CGFloat, anchorY: CGFloat, jumperY: CGFloat, height: CGFloat, inFlight: Bool, dt: TimeInterval) -> CGFloat {
+        let lead = inFlight ? min(60, max(0, (anchorY - jumperY) * 0.25)) : 0
+        let target = min(-height / 2 + height, anchorY - height * 0.15 - lead)
+        return min(current, current + (target - current) * CGFloat(1 - exp(-JumpTuning.cameraFollowRate * dt)))
     }
 }
 

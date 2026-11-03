@@ -10,6 +10,8 @@ final class GameScene: SKScene, ObservableObject {
     private var hudClock: TimeInterval = 0
     private var progress = EscapeProgress()
     private var cave: CaveID = .depths
+    var expeditionMode: ExpeditionMode = .climb
+    var isDescending: Bool { expeditionMode == .descent }
 
     private let textures = GameTextureStore()
     private lazy var mint = ClimberNode(hero: .cyan, textures: textures)
@@ -84,6 +86,14 @@ final class GameScene: SKScene, ObservableObject {
     private var handoffTarget = CGPoint.zero
     private var ended: Bool { flow.phase == .over }
     private var flight: Bool { flow.phase == .flying }
+
+    private func launchVelocity(to target: CGPoint) -> CGVector {
+        let raw = rope.slingshotVelocity(anchor: anchor.position, free: jumper.position, target: target)
+        guard isDescending else { return raw }
+        // Descent uses a softer, capped downward impulse so the player can
+        // steer into the next platform instead of dropping through it.
+        return CGVector(dx: raw.dx * 0.92, dy: min(-180, raw.dy * 0.72))
+    }
     #if GRAPHICS_PROFILE
     private var graphicsProfileSession: GraphicsProfileSession?
     #endif
@@ -268,10 +278,13 @@ final class GameScene: SKScene, ObservableObject {
         steeringTouch = nil
         slide.reset()
         rescueWarningPlayed = false
-        velocity = velocity * 0.25
-        tilt.stopSteering()
         rope.reset()
-
+        let offset = jumper.position - anchor.position
+        let distance = offset.length
+        let rescueLength = min(GameConstants.maxDragDistance * 0.82, distance)
+        if distance > rescueLength {
+            jumper.position = anchor.position + offset.normalized() * rescueLength
+        }
         sound.play(.miss)
         UINotificationFeedbackGenerator().notificationOccurred(.warning)
     }
@@ -368,10 +381,12 @@ final class GameScene: SKScene, ObservableObject {
     }
 
     private func fillUpcoming() {
-        let top = max(gameCamera.position.y + size.height / 2, current.position.y + size.height)
-        while upcoming.count < 2 || (upcoming.last?.position.y ?? current.position.y) < top + 190 {
+        let edge = isDescending ? min(gameCamera.position.y - size.height / 2, current.position.y - size.height) : max(gameCamera.position.y + size.height / 2, current.position.y + size.height)
+        while upcoming.count < 2 || (isDescending ? (upcoming.last?.position.y ?? current.position.y) > edge - 190 : (upcoming.last?.position.y ?? current.position.y) < edge + 190) {
             let base = upcoming.last ?? current!
-            let ledge = spawner.nextLedge(above: base, score: score + upcoming.count)
+            let ledge = isDescending
+                ? spawner.nextLedge(below: base, score: score + upcoming.count)
+                : spawner.nextLedge(above: base, score: score + upcoming.count)
             ledge.isHidden = !progress.endless && score + upcoming.count + 1 > EscapeProgress.goal
             ledge.trickAlternative?.isHidden = ledge.isHidden
             upcoming.append(ledge)
@@ -417,9 +432,15 @@ final class GameScene: SKScene, ObservableObject {
         }
         guard !ended, !progress.awaitingChoice else { return }
         if drag == nil {
-            gameCamera.position.y = ClimbCamera.nextY(current: gameCamera.position.y,
-                anchorY: anchor.position.y, jumperY: jumper.position.y,
-                height: size.height, inFlight: flight, dt: elapsed * multiplier)
+            if isDescending {
+                gameCamera.position.y = DescentCamera.nextY(current: gameCamera.position.y,
+                    anchorY: anchor.position.y, jumperY: jumper.position.y,
+                    height: size.height, inFlight: flight, dt: elapsed * multiplier)
+            } else {
+                gameCamera.position.y = ClimbCamera.nextY(current: gameCamera.position.y,
+                    anchorY: anchor.position.y, jumperY: jumper.position.y,
+                    height: size.height, inFlight: flight, dt: elapsed * multiplier)
+            }
         }
         fillUpcoming()
         updateRescueMeter()
@@ -431,7 +452,7 @@ final class GameScene: SKScene, ObservableObject {
         jumper.updatePersonality(jumperExpression, lookingAt: nextLedge.grabPoint, deltaTime: visualDelta)
         updateAim()
         updateTrail(visualDelta)
-        for ledge in children.compactMap({ $0 as? LedgeNode }) where ledge !== current && ledge !== nextLedge && ledge.position.y < gameCamera.position.y - size.height / 2 - 80 {
+        for ledge in children.compactMap({ $0 as? LedgeNode }) where ledge !== current && ledge !== nextLedge && (isDescending ? ledge.position.y > gameCamera.position.y + size.height / 2 + 80 : ledge.position.y < gameCamera.position.y - size.height / 2 - 80) {
             ledge.removeFromParent()
         }
     }
@@ -441,12 +462,13 @@ final class GameScene: SKScene, ObservableObject {
     override func didFinishUpdate() {
         guard ready, !userPaused, appActive else { return }
         rope.render(anchor: anchor.ropeAttachment, free: jumper.ropeAttachment, time: visualTime)
-        backdrop.update(travel: gameCamera.position.y - size.height / 2)
+        backdrop.update(travel: isDescending ? size.height / 2 - gameCamera.position.y : gameCamera.position.y - size.height / 2)
     }
 
     private func publishHUD() {
         var state = GameHUDState()
         state.height = score
+        state.descending = isDescending
         state.points = points
         state.streak = rewards.streak
         state.best = best
@@ -504,7 +526,9 @@ final class GameScene: SKScene, ObservableObject {
             jumper.position = handoffStart + (handoffTarget - handoffStart) * eased
             rope.updateDragState(anchor: anchor.position, free: jumper.position)
             if flow.advance(dt, y: jumper.position.y, verticalSpeed: 0, targetY: nextLedge.grabPoint.y, realDelta: realDelta) == .launchPartner {
-                velocity = PartnerLaunch.velocity(from: jumper.position, anchor: anchor.position, target: nextLedge.grabPoint)
+                velocity = isDescending
+                    ? CGVector(dx: 0, dy: -260)
+                    : PartnerLaunch.velocity(from: jumper.position, anchor: anchor.position, target: nextLedge.grabPoint)
                 rope.reset()
                 rope.launchPulse()
                 trailClock = 0
@@ -515,15 +539,20 @@ final class GameScene: SKScene, ObservableObject {
             }
             return
         }
-        let steeringSpeed = flight ? (steeringMode == .tilt
+        let steeringSpeed = (flight || flow.phase == .rescue) ? (steeringMode == .tilt
             ? tilt.update(sample: gravityInput, dt: realDelta) : slide.update(dt: realDelta)) : 0
         let actualVelocity = velocity + CGVector(dx: steeringSpeed, dy: 0)
         var force = GameConstants.gravity
-        force += rope.springForce(anchor: anchor.position, free: jumper.position, velocity: actualVelocity, deltaTime: dt)
+        force += rope.springForce(anchor: anchor.position, free: jumper.position,
+                                  velocity: actualVelocity, deltaTime: dt)
         let previousPosition = jumper.position
         var position = previousPosition
         RopeDynamics.integrate(position: &position, velocity: &velocity, force: force,
-                               dt: dt, steeringSpeed: steeringSpeed)
+                               dt: dt, steeringSpeed: steeringSpeed,
+                               damping: GameConstants.damping,
+                               horizontalDamping: isDescending ? 1.0 : nil,
+                               verticalDamping: isDescending ? GameConstants.damping : nil)
+        if isDescending { velocity.dy = max(-680, velocity.dy) }
         jumper.position = position
         jumper.setFlightLean(max(-1, min(1, (velocity.dx + steeringSpeed) / 450)))
         if flow.deadlineActive && flow.rescueRemaining <= realDelta {
@@ -554,14 +583,14 @@ final class GameScene: SKScene, ObservableObject {
         }
         if flow.phase == .rescue {
 
-            if jumper.position.y < gameCamera.position.y - size.height / 2 - 100 { finish() }
+            if (isDescending && jumper.position.y > gameCamera.position.y + size.height / 2 + 100) || (!isDescending && jumper.position.y < gameCamera.position.y - size.height / 2 - 100) { finish() }
         }
     }
 
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
         guard !userPaused, appActive, !progress.awaitingChoice, let touch = touches.first, activeTouch == nil else { return }
         if ended { return }
-        if steeringMode == .slide && (flight || flow.phase == .handoff) {
+        if steeringMode == .slide && (flight || flow.phase == .rescue || flow.phase == .handoff) {
             guard steeringTouch == nil else { return }
             steeringTouch = touch
             steeringOrigin = touch.location(in: view).x
@@ -598,7 +627,7 @@ final class GameScene: SKScene, ObservableObject {
             touchesCancelled(touches, with: event)
             return
         }
-        velocity = rope.slingshotVelocity(anchor: anchor.position, free: jumper.position, target: nextLedge.grabPoint)
+        velocity = launchVelocity(to: nextLedge.grabPoint)
         sound.play(.launch)
         launchHaptic.impactOccurred(intensity: 0.6)
         trailClock = 0
@@ -649,6 +678,18 @@ final class GameScene: SKScene, ObservableObject {
         anchor.setAnchored(true)
         jumper.setAnchored(false)
         velocity = .zero
+        if isDescending {
+            // The lower hero has landed and becomes the new anchor. The hero
+            // that was above the platform becomes the next automatically
+            // launched jumper, matching the climbing rhythm in reverse.
+            let landed = jumper
+            jumper = anchor
+            anchor = landed
+            anchor.position = destination.grabPoint
+            anchor.setAnchored(true)
+            jumper.position = anchor.position + CGVector(dx: 0, dy: 125)
+            jumper.setAnchored(false)
+        }
         handoffStart = jumper.position
         handoffElapsed = 0
         tilt.stopSteering()
@@ -683,7 +724,9 @@ final class GameScene: SKScene, ObservableObject {
         saveRunRecords()
         fillUpcoming()
         nextLedge = upcoming[0]
-        handoffTarget = PartnerLaunch.startPosition(anchor: anchor.position, target: nextLedge.grabPoint)
+        handoffTarget = isDescending
+            ? anchor.position + CGVector(dx: 0, dy: 125)
+            : PartnerLaunch.startPosition(anchor: anchor.position, target: nextLedge.grabPoint)
         nextLedge.setTarget(true)
         flow.land()
         rescueWarningPlayed = false
@@ -783,14 +826,18 @@ final class GameScene: SKScene, ObservableObject {
         aim.isHidden = drag == nil || draggedDistance <= 8
         guard !aim.isHidden else { return }
         var position = jumper.position
-        var predictedVelocity = rope.slingshotVelocity(anchor: anchor.position, free: position, target: nextLedge.grabPoint)
+        var predictedVelocity = launchVelocity(to: nextLedge.grabPoint)
         let dt = 1.0 / 120
         for dot in aim.children {
             for _ in 0..<6 {
                 var force = GameConstants.gravity
                 force += RopeDynamics.force(anchor: anchor.position, free: position, velocity: predictedVelocity)
                 predictedVelocity += force * CGFloat(dt)
-                predictedVelocity = predictedVelocity * CGFloat(pow(Double(GameConstants.damping), dt * 60))
+                let horizontal = isDescending ? 1.0 : GameConstants.damping
+                let vertical = GameConstants.damping
+                predictedVelocity.dx *= CGFloat(pow(Double(horizontal), dt * 60))
+                predictedVelocity.dy *= CGFloat(pow(Double(vertical), dt * 60))
+                if isDescending { predictedVelocity.dy = max(-680, predictedVelocity.dy) }
                 position = position + predictedVelocity * CGFloat(dt)
             }
             dot.position = position

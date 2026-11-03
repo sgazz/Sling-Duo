@@ -20,6 +20,7 @@ enum HUDMode: String, CaseIterable {
 
 struct GameHUDState: Equatable {
     var height = 0
+    var descending = false
     var points = 0
     var streak = 0
     var best = 0
@@ -299,7 +300,7 @@ struct GameHUDOverlay: View {
                     HStack(alignment: .firstTextBaseline, spacing: 4) {
                         Text("\(state.height)").font(.system(.title3, design: .rounded, weight: .heavy))
                             .foregroundStyle(GamePalette.mint).accessibilityIdentifier("heightValue")
-                        if !state.endless { Text("/150").font(.caption).foregroundStyle(.white.opacity(0.5)) }
+                        Text(state.descending ? "DEPTH" : (state.endless ? "HEIGHT" : "/150")).font(.caption).foregroundStyle(.white.opacity(0.5))
                         Text("·").foregroundStyle(.white.opacity(0.3)).padding(.horizontal, 3)
                         Text("\(state.points) pts").font(.subheadline.bold()).accessibilityIdentifier("scoreValue")
                         if state.turbo || (state.endless && state.tempo > 1) {
@@ -354,7 +355,7 @@ struct GameHUDOverlay: View {
             VStack(spacing: 8) {
                 HStack {
                     VStack(alignment: .leading, spacing: 3) {
-                        Text(state.endless ? "ENDLESS" : "ESCAPE").font(.caption2.bold()).tracking(2).foregroundStyle(GamePalette.mint)
+                        Text(state.descending ? "DESCENT" : (state.endless ? "ENDLESS" : "ESCAPE")).font(.caption2.bold()).tracking(2).foregroundStyle(GamePalette.mint)
                         Text(state.caveTitle).font(.system(.subheadline, design: .rounded, weight: .bold))
                     }
                     Spacer()
@@ -363,12 +364,12 @@ struct GameHUDOverlay: View {
                 HStack(alignment: .firstTextBaseline) {
                     Text("\(state.height)").font(.system(size: 32, weight: .heavy, design: .rounded)).monospacedDigit()
                         .accessibilityIdentifier("heightValue")
-                    Text(state.endless ? "HEIGHT" : "/ 150").font(.subheadline.bold()).foregroundStyle(.white.opacity(0.5))
+                    Text(state.descending ? "DEPTH" : (state.endless ? "HEIGHT" : "/ 150")).font(.subheadline.bold()).foregroundStyle(.white.opacity(0.5))
                     Spacer()
                     VStack(alignment: .trailing, spacing: 4) {
                         Text("SCORE \(state.points)").font(.system(.headline, design: .rounded, weight: .bold)).monospacedDigit()
                             .accessibilityIdentifier("scoreValue")
-                        Text(state.newBest ? "NEW BEST · \(state.best)" : "BEST HEIGHT \(state.best)").font(.system(size: 10, weight: .bold)).foregroundStyle(state.newBest ? GamePalette.gold : .white.opacity(0.45))
+                        Text(state.newBest ? "NEW BEST · \(state.best)" : (state.descending ? "BEST DEPTH \(state.best)" : "BEST HEIGHT \(state.best)")).font(.system(size: 10, weight: .bold)).foregroundStyle(state.newBest ? GamePalette.gold : .white.opacity(0.45))
                     }
                 }
                 if !state.endless {

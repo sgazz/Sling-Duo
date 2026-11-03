@@ -22,6 +22,7 @@ struct ContentView: View {
     @State private var caveLoadTask: Task<Void, Never>?
     @State private var loadingCave: CaveID?
     @State private var selectedCave: CaveID?
+    @State private var selectedMode: ExpeditionMode?
     @State private var showingCaveMap = false
     @State private var paused = false
     @State private var showingTutorial = false
@@ -40,13 +41,15 @@ struct ContentView: View {
         Group {
             if !didSeeStory {
                 IntroStoryView { didSeeStory = true }
+            } else if selectedMode == nil {
+                ExpeditionModeView(select: { selectedMode = $0 })
             } else if selectedCave == nil || showingCaveMap {
                 CaveMapView(crystalUnlocked: crystalCavernUnlocked, riverUnlocked: undergroundRiverUnlocked,
                             ruinsUnlocked: ancientRuinsUnlocked, volcanicUnlocked: volcanicPassageUnlocked,
                             frozenUnlocked: frozenRiftUnlocked, glowrootUnlocked: glowrootGrottoUnlocked,
                             stormUnlocked: stormChasmUnlocked, daybreakUnlocked: daybreakExitUnlocked,
                             fragmentMask: dawnheartFragmentMask, unlocksAllCaves: allCavesUnlockedForTesting, select: start,
-                            back: selectedCave == nil ? nil : { backToPause() })
+                            back: selectedCave == nil ? { selectedMode = nil } : { backToPause() })
             } else {
                 ZStack {
                     SpriteView(scene: scene, preferredFramesPerSecond: 60).ignoresSafeArea()
@@ -107,6 +110,7 @@ struct ContentView: View {
         didSeeStory = true
         didSeeTutorial = true
         selectedCave = .depths
+        selectedMode = .climb
         scene.setGameplayPaused(false)
         #endif
         #if DEBUG
@@ -117,6 +121,7 @@ struct ContentView: View {
             || environment["SLINGDUO_UI_SCREEN"] != nil
         if selectedCave == nil, launchesGameplayForTest {
             didSeeStory = true
+            selectedMode = .climb
             selectedCave = .depths
             scene.selectCave(.depths)
             scene.setGameplayPaused(false)
@@ -150,6 +155,7 @@ struct ContentView: View {
             scene.turboEnabled = turboEnabled
             scene.soundEnabled = soundEnabled
             scene.steeringMode = SteeringMode(rawValue: steeringMode) ?? .tilt
+            scene.expeditionMode = selectedMode ?? .climb
             scene.selectCave(cave)
             selectedCave = cave
             showingCaveMap = false
@@ -171,6 +177,11 @@ struct ContentView: View {
         paused = true
         showingTutorial = false
         showingCaveMap = true
+    }
+
+    private func backToModeSelection() {
+        selectedCave = nil
+        selectedMode = nil
     }
 
     private func backToPause() {
