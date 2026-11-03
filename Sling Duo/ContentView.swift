@@ -22,11 +22,10 @@ struct ContentView: View {
     @State private var caveLoadTask: Task<Void, Never>?
     @State private var loadingCave: CaveID?
     @State private var selectedCave: CaveID?
+    @State private var showingCaveMap = false
     @State private var paused = false
     @State private var showingTutorial = false
     @State private var tutorialFromPause = false
-    @State private var countdown: Int?
-    @State private var resumeTask: Task<Void, Never>?
 
     // All expedition cards stay open in development for rapid visual testing.
     // Release builds always use normal campaign progression.
@@ -41,12 +40,13 @@ struct ContentView: View {
         Group {
             if !didSeeStory {
                 IntroStoryView { didSeeStory = true }
-            } else if selectedCave == nil {
+            } else if selectedCave == nil || showingCaveMap {
                 CaveMapView(crystalUnlocked: crystalCavernUnlocked, riverUnlocked: undergroundRiverUnlocked,
                             ruinsUnlocked: ancientRuinsUnlocked, volcanicUnlocked: volcanicPassageUnlocked,
                             frozenUnlocked: frozenRiftUnlocked, glowrootUnlocked: glowrootGrottoUnlocked,
                             stormUnlocked: stormChasmUnlocked, daybreakUnlocked: daybreakExitUnlocked,
-                            fragmentMask: dawnheartFragmentMask, unlocksAllCaves: allCavesUnlockedForTesting, select: start)
+                            fragmentMask: dawnheartFragmentMask, unlocksAllCaves: allCavesUnlockedForTesting, select: start,
+                            back: selectedCave == nil ? nil : { backToPause() })
             } else {
                 ZStack {
                     SpriteView(scene: scene, preferredFramesPerSecond: 60).ignoresSafeArea()
@@ -96,7 +96,7 @@ struct ContentView: View {
             scene.setActive(newPhase == .active)
             if newPhase != .active { pause() }
         }
-        .onDisappear { resumeTask?.cancel(); caveLoadTask?.cancel() }
+        .onDisappear { caveLoadTask?.cancel() }
     }
 
     private func configure() {
@@ -139,7 +139,6 @@ struct ContentView: View {
     }
 
     private func start(_ cave: CaveID) {
-        resumeTask?.cancel()
         caveLoadTask?.cancel()
         scene.setGameplayPaused(true)
         // Drop old nodes before dropping their texture ownership.
@@ -153,6 +152,7 @@ struct ContentView: View {
             scene.steeringMode = SteeringMode(rawValue: steeringMode) ?? .tilt
             scene.selectCave(cave)
             selectedCave = cave
+            showingCaveMap = false
             loadingCave = nil
             if !didSeeTutorial {
                 tutorialFromPause = false
@@ -165,72 +165,60 @@ struct ContentView: View {
     }
 
     private func returnToMap() {
-        resumeTask?.cancel()
         caveLoadTask?.cancel()
         loadingCave = nil
-        scene.releaseCaveResources()
-        paused = false
+        scene.setGameplayPaused(true)
+        paused = true
         showingTutorial = false
-        selectedCave = nil
+        showingCaveMap = true
+    }
+
+    private func backToPause() {
+        showingCaveMap = false
+        pause()
     }
 
     private var pauseOverlay: some View {
-        Group {
-            if let countdown {
-                ZStack {
-                    GamePalette.ink.opacity(0.72).ignoresSafeArea()
-                    VStack(spacing: 18) {
-                        Text("BACK IN RHYTHM").font(.caption.bold()).tracking(3).foregroundStyle(GamePalette.mint)
-                        Text("\(countdown)").font(.system(size: 96, weight: .heavy, design: .rounded)).monospacedDigit()
-                            .accessibilityIdentifier("resumeCountdown")
-                        Text(steeringMode == "tilt" ? "Hold your phone ready." : "Get your finger ready.")
-                            .font(.subheadline).foregroundStyle(.white.opacity(0.6))
-                    }.foregroundStyle(.white)
+        GameModal {
+            ModalHeading(eyebrow: scene.hud.endless ? "Endless" : "Escape", title: "Take a breath.", subtitle: "Your duo is waiting. Everything is paused.")
+            HStack(spacing: 8) {
+                StatTile(label: "Height", value: "\(scene.hud.height)")
+                StatTile(label: "Score", value: "\(scene.hud.points)")
+                StatTile(label: "Time", value: EscapeProgress.timeText(Double(scene.hud.seconds)))
+            }
+            Button(scene.runSummary == nil ? "Continue" : "Try Again") {
+                if scene.runSummary != nil { scene.restartFromMenu() }
+                resume()
+            }.buttonStyle(GameActionStyle()).accessibilityIdentifier("continueGame")
+            VStack(spacing: 8) {
+                SettingsRow(symbol: steeringMode == "tilt" ? "iphone.gen3" : "hand.draw", title: "Controls",
+                            detail: steeringMode == "tilt" ? "Tilt gently to steer in flight" : "Slide horizontally to steer in flight",
+                            value: steeringMode == "tilt" ? "TILT" : "SLIDE", id: "steeringMode",
+                            accessibilityLabel: steeringMode == "tilt" ? "Controls: Tilt" : "Controls: Slide") {
+                    steeringMode = steeringMode == "tilt" ? "slide" : "tilt"
                 }
-            } else {
-                GameModal {
-                    ModalHeading(eyebrow: scene.hud.endless ? "Endless" : "Escape", title: "Take a breath.", subtitle: "Your duo is waiting. Everything is paused.")
-                    HStack(spacing: 8) {
-                        StatTile(label: "Height", value: "\(scene.hud.height)")
-                        StatTile(label: "Score", value: "\(scene.hud.points)")
-                        StatTile(label: "Time", value: EscapeProgress.timeText(Double(scene.hud.seconds)))
-                    }
-                    Button(scene.runSummary == nil ? "Continue" : "Try Again") {
-                        if scene.runSummary != nil { scene.restartFromMenu() }
-                        resume()
-                    }.buttonStyle(GameActionStyle()).accessibilityIdentifier("continueGame")
-                    VStack(spacing: 8) {
-                        SettingsRow(symbol: steeringMode == "tilt" ? "iphone.gen3" : "hand.draw", title: "Controls",
-                                    detail: steeringMode == "tilt" ? "Tilt gently to steer in flight" : "Slide horizontally to steer in flight",
-                                    value: steeringMode == "tilt" ? "TILT" : "SLIDE", id: "steeringMode",
-                                    accessibilityLabel: steeringMode == "tilt" ? "Controls: Tilt" : "Controls: Slide") {
-                            steeringMode = steeringMode == "tilt" ? "slide" : "tilt"
-                        }
-                        SettingsRow(symbol: soundEnabled ? "speaker.wave.2" : "speaker.slash", title: "Sound", detail: "Launch, catch and warning cues",
-                                    value: soundEnabled ? "ON" : "OFF", id: "pauseSound",
-                                    accessibilityLabel: soundEnabled ? "Sound: On" : "Sound: Off") { soundEnabled.toggle() }
-                        SettingsRow(symbol: "bolt", title: "Turbo experiment", detail: "+5% every 5 seconds, up to 3×. Separate records.",
-                                    value: turboEnabled ? "ON" : "OFF", id: "turboToggle",
-                                    accessibilityLabel: turboEnabled ? "Turbo experiment: On" : "Turbo experiment: Off") { turboEnabled.toggle() }
-                        SettingsRow(symbol: "rectangle.compress.vertical", title: "HUD", detail: "Compact, hidden or full. Pause stays available.",
-                                    value: (HUDMode(rawValue: hudMode) ?? .compact).title.uppercased(), id: "hudMode",
-                                    accessibilityLabel: "HUD: " + (HUDMode(rawValue: hudMode) ?? .compact).title) {
-                            hudMode = (HUDMode(rawValue: hudMode) ?? .compact).next.rawValue
-                        }
-                    }
-                    HStack(spacing: 12) {
-                        Button("How to Play") {
-                            tutorialFromPause = true
-                            showingTutorial = true
-                        }.accessibilityIdentifier("howToPlay")
-                        Spacer()
-                        Button("Cave Map", action: returnToMap).accessibilityIdentifier("leaveToCaveMap")
-                        Spacer()
-                        Button("Restart") { scene.restartFromMenu(); resume() }.accessibilityIdentifier("restartGame")
-                    }.font(.caption.bold()).foregroundStyle(GamePalette.mint).frame(minHeight: 44)
-                    ScoringGuide()
+                SettingsRow(symbol: "rectangle.compress.vertical", title: "HUD", detail: "Compact, hidden or full. Pause stays available.",
+                            value: (HUDMode(rawValue: hudMode) ?? .compact).title.uppercased(), id: "hudMode",
+                            accessibilityLabel: "HUD: " + (HUDMode(rawValue: hudMode) ?? .compact).title) {
+                    hudMode = (HUDMode(rawValue: hudMode) ?? .compact).next.rawValue
                 }
             }
+            HStack(spacing: 12) {
+                Button("Cave Map", action: returnToMap)
+                    .accessibilityIdentifier("leaveToCaveMap")
+                Button("Restart") { scene.restartFromMenu(); resume() }
+                    .accessibilityIdentifier("restartGame")
+            }
+            .buttonStyle(GameActionStyle(primary: false))
+            Button("How to Play") {
+                tutorialFromPause = true
+                showingTutorial = true
+            }
+            .font(.headline)
+            .foregroundStyle(GamePalette.mint)
+            .frame(maxWidth: .infinity, minHeight: 44)
+            .accessibilityIdentifier("howToPlay")
+            ScoringGuide()
         }
     }
 
@@ -293,26 +281,13 @@ struct ContentView: View {
     }
 
     private func pause() {
-        resumeTask?.cancel()
-        countdown = nil
         scene.setGameplayPaused(true)
         if !showingTutorial { paused = true }
     }
 
     private func resume() {
-        resumeTask?.cancel()
-        scene.setGameplayPaused(true)
-        paused = true
-        resumeTask = Task { @MainActor in
-            for number in (1...3).reversed() {
-                guard !Task.isCancelled else { return }
-                countdown = number
-                do { try await Task.sleep(for: .seconds(1)) } catch { return }
-            }
-            guard !Task.isCancelled, phase == .active else { return }
-            countdown = nil
-            paused = false
-            scene.setGameplayPaused(false)
-        }
+        guard phase == .active else { return }
+        paused = false
+        scene.setGameplayPaused(false)
     }
 }

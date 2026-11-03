@@ -19,7 +19,8 @@ for source in sorted((ROOT / 'ArtSources').glob('*.png')):
     runtime = original.resize(size, Image.Resampling.LANCZOS)
     target = ASSETS / (name + 'Texture.dataset')
     runtime.save(target / 'texture.png', optimize=True)
-    if name.startswith('Hero'):
+    # Only export illustrations retained by the UI asset catalog.
+    if name.startswith('Hero') and (ASSETS / (name + 'Illustration.imageset')).is_dir():
         ratio = 640 / max(original.size)
         ui = original.resize(tuple(round(value * ratio) for value in original.size), Image.Resampling.LANCZOS)
         ui.save(ASSETS / (name + 'Illustration.imageset') / 'image.png', optimize=True)

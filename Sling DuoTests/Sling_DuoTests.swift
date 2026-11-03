@@ -119,9 +119,18 @@ struct Sling_DuoTests {
             for state in ["Idle", "Anchored", "Pull", "Flight", "Catch", "Miss"] {
                 let color = hero == .cyan ? "Cyan" : "Orange"
                 #expect(NSDataAsset(name: "Hero" + color + state + "Texture") != nil)
-                #expect(UIImage(named: "Hero" + color + state + "Illustration") != nil)
             }
         }
+    }
+
+    @Test func usedUIIllustrationsLoad() {
+        for name in ["HeroCyanIdle", "HeroCyanAnchored", "HeroCyanCatch", "HeroCyanFlight",
+                     "HeroOrangeIdle", "HeroOrangePull", "HeroOrangeCatch", "HeroOrangeFlight",
+                     "HeroOrangeMiss"] {
+            #expect(UIImage(named: name + "Illustration") != nil)
+        }
+        #expect(UIImage(named: "IntroCampBackdrop") != nil)
+        #expect(UIImage(named: "DawnheartFragment") != nil)
     }
 
     @Test func routeFillsPhoneAndTabletAndPauseFreezesSimulation() {

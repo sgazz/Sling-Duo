@@ -9,12 +9,6 @@ final class LedgeNode: SKShapeNode {
     var reward: Int { isTrickPlatform ? 0 : (isMovingPlatform ? 2 : 1) }
     func configureTrick() {
         isTrickPlatform = true
-        let badge = SKLabelNode(fontNamed: "AvenirNext-Bold")
-        badge.text = "0"
-        badge.fontSize = 12
-        badge.fontColor = .white.withAlphaComponent(0.7)
-        badge.position.y = -24
-        addChild(badge)
     }
     private var motionCenter: CGFloat = 0
     private var motionTime: TimeInterval = 0

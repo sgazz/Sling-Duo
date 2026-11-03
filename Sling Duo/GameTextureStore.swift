@@ -26,10 +26,10 @@ final class GameTextureStore {
         let background: [String]
         switch cave {
         case .depths: background = ["CaveFar", "CaveMid", "CaveForeground"]
-        case .undergroundRiver: background = ["RiverWaterTile", "RiverBankOverlay", "RiverDecorSheet"]
+        case .undergroundRiver: background = ["RiverWaterTile", "RiverBankOverlay"]
         default:
             let prefix = cave.rawValue.prefix(1).uppercased() + cave.rawValue.dropFirst()
-            background = ["\(prefix)BaseTile", "\(prefix)BankOverlay", "\(prefix)DecorSheet"]
+            background = ["\(prefix)BaseTile", "\(prefix)BankOverlay"]
         }
         return sharedNames.union(background).union(PlatformArtwork.names(for: cave.platformStyle))
     }

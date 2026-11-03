@@ -47,6 +47,7 @@ struct CaveMapView: View {
     let fragmentMask: Int
     let unlocksAllCaves: Bool
     let select: (CaveID) -> Void
+    var back: (() -> Void)? = nil
 
     var body: some View {
         ZStack {
@@ -75,7 +76,20 @@ struct CaveMapView: View {
                 .frame(maxWidth: 520)
                 .frame(maxWidth: .infinity)
             }
-        }.foregroundStyle(.white)
+        }
+        .safeAreaInset(edge: .top, alignment: .leading) {
+            if let back {
+                Button(action: back) {
+                    Label("Back", systemImage: "chevron.left")
+                        .font(.headline)
+                        .padding(.horizontal, 20)
+                        .frame(minHeight: 44)
+                }
+                .foregroundStyle(GamePalette.mint)
+                .accessibilityIdentifier("caveMapBack")
+            }
+        }
+        .foregroundStyle(.white)
     }
 
     private func caveCard(_ cave: CaveID, unlocked: Bool) -> some View {
