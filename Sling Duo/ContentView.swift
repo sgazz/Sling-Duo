@@ -26,6 +26,7 @@ struct ContentView: View {
     @State private var paused = false
     @State private var showingTutorial = false
     @State private var tutorialFromPause = false
+    @State private var introPresented = false
 
     // All expedition cards stay open in development for rapid visual testing.
     // Release builds always use normal campaign progression.
@@ -38,8 +39,8 @@ struct ContentView: View {
 
     var body: some View {
         Group {
-            if !didSeeStory {
-                IntroStoryView { didSeeStory = true }
+            if !introPresented {
+                IntroStoryView { introPresented = true; didSeeStory = true }
             } else if selectedCave == nil || showingCaveMap {
                 CaveMapView(crystalUnlocked: crystalCavernUnlocked, riverUnlocked: undergroundRiverUnlocked,
                             ruinsUnlocked: ancientRuinsUnlocked, volcanicUnlocked: volcanicPassageUnlocked,
@@ -106,6 +107,7 @@ struct ContentView: View {
         #if GRAPHICS_PROFILE
         didSeeStory = true
         didSeeTutorial = true
+        introPresented = true
         selectedCave = .depths
         scene.setGameplayPaused(false)
         #endif
@@ -117,6 +119,7 @@ struct ContentView: View {
             || environment["SLINGDUO_UI_SCREEN"] != nil
         if selectedCave == nil, launchesGameplayForTest {
             didSeeStory = true
+            introPresented = true
             selectedCave = .depths
             scene.selectCave(.depths)
             scene.setGameplayPaused(false)

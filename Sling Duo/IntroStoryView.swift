@@ -28,6 +28,7 @@ struct IntroStoryView: View {
     ]
 
     let finish: () -> Void
+    private let introSound = GameAudio()
     @State private var page = 0
     @State private var breathing = false
 
@@ -40,17 +41,19 @@ struct IntroStoryView: View {
                     .resizable()
                     .scaledToFill()
                     .frame(width: proxy.size.width, height: proxy.size.height)
-                    .scaleEffect(breathing ? 1.06 : 1)
+                    .scaleEffect((breathing ? 1.06 : 1) + CGFloat(page) * 0.008)
+                    .offset(x: CGFloat(page - 1) * 8 + (breathing ? 3 : -3))
                     .animation(.easeInOut(duration: 7).repeatForever(autoreverses: true), value: breathing)
+                    .animation(.easeInOut(duration: 0.7), value: page)
                     .clipped()
 
                 LinearGradient(colors: [.black.opacity(0.12), .black.opacity(0.06), GamePalette.ink.opacity(0.88)],
                                startPoint: .top, endPoint: .bottom)
                     .ignoresSafeArea()
 
-                VStack(spacing: 0) {
+                    VStack(spacing: 0) {
                     HStack {
-                        Button("Skip") { finish() }
+                        Button("Skip") { introSound.play(.end); finish() }
                             .font(.caption.bold()).foregroundStyle(.white.opacity(0.82))
                             .padding(.horizontal, 15).padding(.vertical, 9)
                             .background(.black.opacity(0.28), in: Capsule())
@@ -86,8 +89,13 @@ struct IntroStoryView: View {
                     .padding(.horizontal, 26).padding(.top, 18)
 
                     Button(page == panels.count - 1 ? "Begin the climb" : "Continue") {
-                        if page == panels.count - 1 { finish() }
-                        else { withAnimation(.spring(response: 0.42, dampingFraction: 0.86)) { page += 1 } }
+                        if page == panels.count - 1 {
+                            introSound.play(.end)
+                            finish()
+                        } else {
+                            introSound.play(panel.showsDawnheart ? .grab : .launch)
+                            withAnimation(.spring(response: 0.42, dampingFraction: 0.86)) { page += 1 }
+                        }
                     }
                     .buttonStyle(GameActionStyle())
                     .padding(.horizontal, 24).padding(.top, 20).padding(.bottom, 28)
@@ -96,7 +104,10 @@ struct IntroStoryView: View {
             }
             .foregroundStyle(.white)
         }
-        .onAppear { breathing = true }
+        .onAppear {
+            introSound.prepare()
+            breathing = true
+        }
     }
 
     private func hero(_ image: String, offset: CGFloat) -> some View {
@@ -109,7 +120,11 @@ struct IntroStoryView: View {
         ZStack {
             Circle().fill(GamePalette.gold.opacity(0.16)).frame(width: 116, height: 116).blur(radius: 14)
             Circle().stroke(GamePalette.gold, lineWidth: 3).frame(width: 54, height: 54)
-            Image(systemName: "sparkles").font(.title2.bold()).foregroundStyle(GamePalette.gold)
+            Image("DawnheartFragment")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 48, height: 48)
+                .shadow(color: GamePalette.gold.opacity(0.8), radius: 10)
         }
         .offset(y: -80)
         .transition(.scale.combined(with: .opacity))
