@@ -49,3 +49,18 @@ A physical iPhone is needed to evaluate tilt, haptics, and silent-switch behavio
 Run the test targets with **Product → Test** in Xcode. Unit tests cover jump transitions, rescue timing, tilt response, reachability, precision platforms, and preventing unattended climbing. UI tests cover onboarding, help, HUD touch-through, pause/resume, background interruption, settings persistence, rescue UI, and both result flows.
 
 This repository is an actively tuned gameplay prototype.
+
+## Graphics resources and profiling
+
+Gameplay textures are exported from `ArtSources/` with `Tools/export_game_textures.py`.
+Hero UI illustrations are separate from gameplay images. `GameTextureStore` preloads
+only the active cave and shared hero/fragment package; leaving the cave releases
+app-owned texture and node references. Platform targeting controls motion without
+rendering target/precision/moving overlays.
+
+See `ArtSources/README.md` for export sizes and pivot preservation, and
+`Tools/GRAPHICS_PROFILING.md` for repeatable Release device measurements. The
+`GRAPHICS_PROFILE` flag is opt-in and excluded from ordinary builds. Saved validation
+and simulator-only measurements are in `Performance/2026-11-02/`; physical-device
+CPU/memory paired results are saved in `Performance/2026-11-02/physical-device.md`.
+Matched GPU results cover all nine caves and all 27 first-round phases per version.

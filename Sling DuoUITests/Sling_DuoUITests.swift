@@ -14,13 +14,30 @@ final class Sling_DuoUITests: XCTestCase {
         let resume = app.buttons["continueGame"]
         XCTAssertTrue(resume.waitForExistence(timeout: 3))
         resume.tap()
-        XCTAssertTrue(app.staticTexts["resumeCountdown"].waitForExistence(timeout: 2))
-        let gone = NSPredicate(format: "exists == false")
-        expectation(for: gone, evaluatedWith: app.staticTexts["resumeCountdown"])
-        waitForExpectations(timeout: 5)
+        waitForGameplay(app)
         XCUIDevice.shared.press(.home)
         app.activate()
         XCTAssertTrue(resume.waitForExistence(timeout: 5))
+    }
+
+    @MainActor
+    func testCaveMapBackReturnsToPause() {
+        let app = XCUIApplication()
+        app.launchEnvironment["SLINGDUO_SKIP_ONBOARDING"] = "1"
+        app.launch()
+        XCTAssertTrue(app.buttons["pauseGame"].waitForExistence(timeout: 10))
+        let height = app.staticTexts["heightValue"].label
+        app.buttons["pauseGame"].tap()
+        app.buttons["leaveToCaveMap"].tap()
+        let back = app.buttons["caveMapBack"]
+        XCTAssertTrue(back.waitForExistence(timeout: 3))
+        back.tap()
+        XCTAssertTrue(app.staticTexts["Take a breath."].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["continueGame"].exists)
+        XCTAssertFalse(back.exists)
+        app.buttons["continueGame"].tap()
+        waitForGameplay(app)
+        XCTAssertEqual(app.staticTexts["heightValue"].label, height)
     }
 
     @MainActor
@@ -62,25 +79,25 @@ final class Sling_DuoUITests: XCTestCase {
     }
 
     @MainActor
-    func testTurboTogglePersistsAndCanBeDisabled() {
+    func testPauseShowsNavigationWithoutSoundAndTurboCards() {
         let app = XCUIApplication()
         app.launchEnvironment["SLINGDUO_SKIP_ONBOARDING"] = "1"
         app.launch()
         XCTAssertTrue(app.buttons["pauseGame"].waitForExistence(timeout: 10))
         app.buttons["pauseGame"].tap()
-        let turbo = app.buttons["turboToggle"]
-        XCTAssertTrue(turbo.waitForExistence(timeout: 3))
-        let initial = turbo.label
-        turbo.tap()
-        let changed = initial == "Turbo experiment: Off" ? "Turbo experiment: On" : "Turbo experiment: Off"
-        XCTAssertEqual(turbo.label, changed)
-        app.terminate()
-        app.launch()
-        app.buttons["pauseGame"].tap()
-        XCTAssertTrue(turbo.waitForExistence(timeout: 3))
-        XCTAssertEqual(turbo.label, changed)
-        turbo.tap()
-        XCTAssertEqual(turbo.label, initial)
+        XCTAssertTrue(app.buttons["hudMode"].waitForExistence(timeout: 3))
+        XCTAssertFalse(app.buttons["pauseSound"].exists)
+        XCTAssertFalse(app.buttons["turboToggle"].exists)
+        let map = app.buttons["leaveToCaveMap"]
+        let restart = app.buttons["restartGame"]
+        let help = app.buttons["howToPlay"]
+        XCTAssertTrue(map.exists && restart.exists && help.exists)
+        XCTAssertGreaterThanOrEqual(map.frame.height, 50)
+        XCTAssertGreaterThanOrEqual(restart.frame.height, 50)
+        XCTAssertLessThan(map.frame.midX, restart.frame.midX)
+        XCTAssertGreaterThanOrEqual(map.frame.minY, app.buttons["hudMode"].frame.maxY)
+        XCTAssertGreaterThanOrEqual(help.frame.minY, max(map.frame.maxY, restart.frame.maxY))
+        XCTAssertEqual(help.frame.midX, app.frame.midX, accuracy: 2)
     }
 
     @MainActor
@@ -97,10 +114,7 @@ final class Sling_DuoUITests: XCTestCase {
         victory.lifetime = .keepAlways
         add(victory)
         keep.tap()
-        XCTAssertTrue(app.staticTexts["resumeCountdown"].waitForExistence(timeout: 2))
-        let gone = NSPredicate(format: "exists == false")
-        expectation(for: gone, evaluatedWith: app.staticTexts["resumeCountdown"])
-        waitForExpectations(timeout: 5)
+        waitForGameplay(app)
         XCTAssertFalse(keep.exists)
         app.buttons["pauseGame"].tap()
         XCTAssertTrue(app.buttons["continueGame"].waitForExistence(timeout: 3))
@@ -109,9 +123,21 @@ final class Sling_DuoUITests: XCTestCase {
         let again = app.buttons["playAgain"]
         XCTAssertTrue(again.waitForExistence(timeout: 10))
         again.tap()
-        XCTAssertTrue(app.staticTexts["resumeCountdown"].waitForExistence(timeout: 2))
-        expectation(for: gone, evaluatedWith: app.staticTexts["resumeCountdown"])
-        waitForExpectations(timeout: 5)
+        // The victory action opens Cave Map; selecting a cave then preloads it
+        // and starts a fresh run immediately.
+        let depths = app.buttons["cave.depths"]
+        XCTAssertTrue(depths.waitForExistence(timeout: 3))
+        depths.tap()
+        if !app.buttons["pauseGame"].waitForExistence(timeout: 5) {
+            // A fresh simulator has never completed onboarding, even though the
+            // initial escape fixture bypasses it. Complete the real map flow.
+            let tutorial = app.buttons["finishTutorial"]
+            XCTAssertTrue(tutorial.exists)
+            if !tutorial.isHittable { app.swipeUp() }
+            tutorial.tap()
+            waitForGameplay(app)
+        }
+        waitForGameplay(app)
         XCTAssertFalse(again.exists)
         XCTAssertTrue(app.buttons["pauseGame"].exists)
     }
@@ -168,8 +194,18 @@ final class Sling_DuoUITests: XCTestCase {
         XCTAssertTrue(retry.waitForExistence(timeout: 10))
         capture(app, name: "UI - defeat")
         retry.tap()
-        XCTAssertTrue(app.staticTexts["resumeCountdown"].waitForExistence(timeout: 2))
+        waitForGameplay(app)
         XCTAssertFalse(retry.exists)
+    }
+
+    @MainActor
+    private func waitForGameplay(_ app: XCUIApplication) {
+        let active = NSPredicate { _, _ in
+            app.buttons["pauseGame"].isHittable && !app.buttons["continueGame"].exists
+        }
+        expectation(for: active, evaluatedWith: app)
+        waitForExpectations(timeout: 2)
+        XCTAssertFalse(app.staticTexts["resumeCountdown"].exists)
     }
 
     @MainActor
@@ -229,9 +265,7 @@ final class Sling_DuoUITests: XCTestCase {
         selector.tap()
         XCTAssertEqual(selector.label, "HUD: Hidden")
         app.buttons["continueGame"].tap()
-        let gone = NSPredicate(format: "exists == false")
-        expectation(for: gone, evaluatedWith: app.staticTexts["resumeCountdown"])
-        waitForExpectations(timeout: 5)
+        waitForGameplay(app)
         XCTAssertFalse(app.staticTexts["heightValue"].exists)
         XCTAssertTrue(app.buttons["pauseGame"].exists)
         capture(app, name: "UI - hidden HUD")

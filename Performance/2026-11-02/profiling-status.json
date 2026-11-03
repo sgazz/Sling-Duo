@@ -1,0 +1,28 @@
+{
+  "physical": {
+    "device_model": "iPhone 11 / A13 / 4 GB",
+    "os": "iOS 27.0.1 (24A446)",
+    "xcode": "27.1 (27A9275)",
+    "baseline_revision": "2a73bfe with measurement-only hooks",
+    "optimized_revision": "db5c1be with measurement-only hooks",
+    "physical_cpu_memory_measured": true,
+    "physical_csv_runs": 4,
+    "phases_per_run": 55,
+    "gpu_status": "Complete: matched continuous GPU capture, first round across all nine caves and all 27 phases per variant",
+    "device_status": "Measurement complete; profiling process already terminated after capture",
+    "simulator_results": "Previously saved separately; not used for physical conclusions",
+    "physical_gpu_measured": true,
+    "gpu_caves_per_variant": 9,
+    "gpu_phases_per_variant": 27
+  },
+  "previous_simulator_only_run": {
+    "environment": "iPhone 17 Simulator, iOS 27.0, Mac mini M4 host; NOT physical-device results",
+    "phase_count": 55,
+    "rounds": 2,
+    "caves_per_round": 9,
+    "gpu_measured": false,
+    "physical_device_status": "Blocked: iPhone 11 locked; Instruments timed out waiting for device; app launch rejected because device could not be unlocked",
+    "texture_count_after_release": 0,
+    "footprint_mib_after_release": 25.862
+  }
+}

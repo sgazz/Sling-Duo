@@ -5,6 +5,101 @@ import Testing
 
 @MainActor
 struct Sling_DuoTests {
+    @Test func backdropPreservesAspectAndCoversWrapOnPhoneAndTablet() throws {
+        for size in [CGSize(width: 390, height: 844), CGSize(width: 768, height: 1024)] {
+            let store = GameTextureStore()
+            for cave in CaveID.allCases {
+                store.activate(cave: cave)
+                let backdrop = CaveBackdrop(textures: store)
+                backdrop.configure(size: size, cave: cave)
+                let tiledLayers = backdrop.children.filter { $0.children.count > 0 &&
+                    $0.children.allSatisfy { ($0 as? SKSpriteNode)?.position.x == 0 } }
+                #expect(!tiledLayers.isEmpty)
+                for layer in tiledLayers {
+                    for child in layer.children {
+                        let tile = child as! SKSpriteNode
+                        let textureSize = tile.texture!.size()
+                        #expect(abs(tile.size.width / tile.size.height - textureSize.width / textureSize.height) < 0.001)
+                        #expect(tile.size.width >= size.width)
+                    }
+                }
+                // Large camera travel crosses both upright and mirrored wraps.
+                for travel: CGFloat in [0, 9999, 10000, 10001, 1000000] {
+                    backdrop.update(travel: travel)
+                    for layer in tiledLayers {
+                        let frames = layer.children.map { $0.calculateAccumulatedFrame().offsetBy(dx: layer.position.x, dy: layer.position.y) }
+                        #expect(frames.map(\.minY).min()! <= -size.height / 2)
+                        #expect(frames.map(\.maxY).max()! >= size.height / 2)
+                        let sorted = frames.sorted { $0.minY < $1.minY }
+                        for pair in zip(sorted, sorted.dropFirst()) {
+                            #expect(abs(pair.0.maxY - pair.1.minY) < 0.01)
+                        }
+                    }
+                }
+                // Compare the same visible tile just before and after its exact
+                // wrap boundary, including mirror parity in legacy Depths.
+                for layer in tiledLayers {
+                    backdrop.update(travel: 1)
+                    let speed = -layer.position.y
+                    let tile = layer.children[0] as! SKSpriteNode
+                    let mirrored = layer.children.contains { $0.yScale < 0 }
+                    let period = tile.size.height * (mirrored ? 2 : 1)
+                    backdrop.update(travel: (period - 0.001) / speed)
+                    let before = layer.children.compactMap { $0 as? SKSpriteNode }.filter {
+                        abs($0.position.y + layer.position.y) < size.height / 2 + tile.size.height / 2
+                    }.map { ($0.position.y + layer.position.y, $0.yScale) }
+                    backdrop.update(travel: (period + 0.001) / speed)
+                    for (y, flip) in before {
+                        let nearest = layer.children.min { abs($0.position.y + layer.position.y - y) < abs($1.position.y + layer.position.y - y) }!
+                        #expect(abs(nearest.position.y + layer.position.y - y) < 0.003)
+                        #expect(nearest.yScale == flip)
+                    }
+                }
+                // Decor is positioned in the camera's centered coordinate space.
+                for layer in backdrop.children where !tiledLayers.contains(layer) {
+                    #expect(layer.children.allSatisfy { abs($0.position.x) < size.width / 2 })
+                }
+                let scene = SKScene(size: size)
+                scene.backgroundColor = SKColor(red: 0.055, green: 0.075, blue: 0.16, alpha: 1)
+                let view = SKView(frame: CGRect(origin: .zero, size: size))
+                view.presentScene(scene)
+                backdrop.position = CGPoint(x: size.width / 2, y: size.height / 2)
+                scene.addChild(backdrop)
+                backdrop.update(travel: 10000)
+                let rendered = try #require(view.texture(from: scene, crop: CGRect(origin: .zero, size: size)))
+                if #available(iOS 26.0, *) {
+                    Attachment.record(rendered.cgImage(), named: "backdrop-\(cave.rawValue)-\(Int(size.width)).png")
+                }
+                view.presentScene(nil)
+                backdrop.releaseLayers()
+            }
+        }
+    }
+
+    @Test func finalRenderUsesTransformedBeltPointsAndFrozenVisualTime() {
+        let scene = GameScene(size: CGSize(width: 390, height: 844))
+        let view = SKView(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
+        view.presentScene(scene)
+        let heroes = scene.children.compactMap { $0 as? ClimberNode }
+        #expect(heroes.count == 2)
+        heroes[0].xScale = 1.15
+        heroes[0].yScale = 0.8
+        heroes[1].position = heroes[1].position + CGVector(dx: 20, dy: 5)
+        scene.didFinishUpdate()
+        let core = scene.childNode(withName: "//ropeCore") as! SKShapeNode
+        var ends: [CGPoint] = []
+        core.path!.applyWithBlock { element in
+            if element.pointee.type == .moveToPoint { ends.append(element.pointee.points[0]) }
+            if element.pointee.type == .addQuadCurveToPoint { ends.append(element.pointee.points[1]) }
+        }
+        #expect(ends.count == 2)
+        for hero in heroes { #expect(ends.contains(hero.ropeAttachment)) }
+        let before = core.path!.boundingBox
+        scene.didFinishUpdate()
+        #expect(core.path!.boundingBox == before)
+        view.presentScene(nil)
+    }
+
     @Test func heroPosesLoadWithoutMovingTheSimulationPoint() {
         let scene = SKScene(size: CGSize(width: 390, height: 844))
         for hero in ClimberNode.Hero.allCases {
@@ -23,9 +118,19 @@ struct Sling_DuoTests {
             }
             for state in ["Idle", "Anchored", "Pull", "Flight", "Catch", "Miss"] {
                 let color = hero == .cyan ? "Cyan" : "Orange"
-                #expect(UIImage(named: "Hero" + color + state) != nil)
+                #expect(NSDataAsset(name: "Hero" + color + state + "Texture") != nil)
             }
         }
+    }
+
+    @Test func usedUIIllustrationsLoad() {
+        for name in ["HeroCyanIdle", "HeroCyanAnchored", "HeroCyanCatch", "HeroCyanFlight",
+                     "HeroOrangeIdle", "HeroOrangePull", "HeroOrangeCatch", "HeroOrangeFlight",
+                     "HeroOrangeMiss"] {
+            #expect(UIImage(named: name + "Illustration") != nil)
+        }
+        #expect(UIImage(named: "IntroCampBackdrop") != nil)
+        #expect(UIImage(named: "DawnheartFragment") != nil)
     }
 
     @Test func routeFillsPhoneAndTabletAndPauseFreezesSimulation() {
@@ -279,19 +384,90 @@ struct Sling_DuoTests {
         #expect(rope.tension == 0)
     }
 
-    @Test func targetDecorationDoesNotChangeGrabRegion() {
+    @Test func ropePhysicsAndPredictionDoNotBuildRenderPaths() {
+        let rope = RubberRopeSystem()
+        let free = CGPoint(x: 25, y: -220)
+        let velocity = CGVector(dx: 10, dy: 40)
+        let force = rope.springForce(anchor: .zero, free: free, velocity: velocity,
+                                     deltaTime: 1.0 / 120)
+        let expected = RopeDynamics.force(anchor: .zero, free: free, velocity: velocity)
+        #expect(force == expected)
+        rope.updateDragState(anchor: .zero, free: free)
+        for name in ["ropeHalo", "ropeBody", "ropeCore"] {
+            #expect((rope.node.childNode(withName: name) as? SKShapeNode)?.path == nil)
+        }
+        rope.render(anchor: .zero, free: free, time: 0)
+        let body = rope.node.childNode(withName: "ropeBody") as! SKShapeNode
+        let renderedBounds = body.path!.boundingBox
+        let simulationRope = RubberRopeSystem()
+        var position = free
+        var predictedPosition = free
+        var liveVelocity = velocity
+        var predictedVelocity = velocity
+        let dt = 1.0 / 120
+        for _ in 0..<108 {
+            let liveForce = GameConstants.gravity + simulationRope.springForce(
+                anchor: .zero, free: position, velocity: liveVelocity, deltaTime: dt)
+            RopeDynamics.integrate(position: &position, velocity: &liveVelocity,
+                                   force: liveForce, dt: dt)
+            RopeDynamics.step(position: &predictedPosition, velocity: &predictedVelocity,
+                              anchor: .zero, dt: dt)
+            #expect(position == predictedPosition)
+            #expect(liveVelocity == predictedVelocity)
+        }
+        _ = rope.springForce(anchor: .zero, free: CGPoint(x: 60, y: -400),
+                             velocity: velocity, deltaTime: 1.0 / 120)
+        #expect(body.path!.boundingBox == renderedBounds)
+    }
+
+    @Test func targetingHasNoGraphicsAndDoesNotChangeGrabRegion() {
         let ledge = LedgeNode(center: CGPoint(x: 195, y: 300))
         let point = ledge.grabPoint
         let descending = CGVector(dx: 0, dy: -100)
         #expect(ledge.canGrab(climberPosition: point, velocity: descending))
         ledge.setTarget(true)
         ledge.setTarget(true)
-        #expect(ledge.children.filter { $0.name == "targetMarker" }.count == 1)
+        #expect(ledge.childNode(withName: "targetMarker") == nil)
+        #expect(ledge.childNode(withName: "platformTypeMarker") == nil)
         #expect(ledge.grabPoint == point)
         #expect(ledge.canGrab(climberPosition: point, velocity: descending))
         ledge.setTarget(false)
         #expect(ledge.childNode(withName: "targetMarker") == nil)
         #expect(!ledge.canGrab(climberPosition: point + CGVector(dx: 300, dy: 0), velocity: descending))
+    }
+
+    @Test func cavePreloadRetainsOnlyActivePackageAndReleasesIt() async {
+        let textures = GameTextureStore()
+        for cave in CaveID.allCases + CaveID.allCases.reversed() {
+            await textures.preload(cave: cave)
+            #expect(textures.cachedNames == GameTextureStore.names(for: cave))
+            #expect(textures.activeCave == cave)
+            let spawner = LedgeSpawner(sceneWidth: 390, style: cave.platformStyle, textures: textures)
+            let ledge = spawner.nextLedge(above: spawner.startingLedge(y: 100), score: 10)
+            ledge.setTarget(true)
+            #expect(ledge.childNode(withName: "targetMarker") == nil)
+            #expect(ledge.childNode(withName: "platformTypeMarker") == nil)
+        }
+        textures.release()
+        #expect(textures.cachedNames.isEmpty)
+        #expect(textures.activeCave == nil)
+    }
+
+    @Test func leavingCaveReleasesSceneTextureReferences() async {
+        let scene = GameScene(size: CGSize(width: 390, height: 844))
+        let view = SKView(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
+        view.presentScene(scene)
+        for cave in CaveID.allCases {
+            scene.releaseCaveResources()
+            #expect(scene.cachedTextureNames.isEmpty)
+            await scene.preloadCave(cave)
+            scene.selectCave(cave)
+            #expect(scene.cachedTextureNames == GameTextureStore.names(for: cave))
+        }
+        scene.releaseCaveResources()
+        #expect(scene.cachedTextureNames.isEmpty)
+        #expect(scene.children.compactMap { $0 as? LedgeNode }.isEmpty)
+        view.presentScene(nil)
     }
 
     @Test func fastDescentGrabsBetweenPhysicsSteps() {
@@ -591,7 +767,7 @@ struct Sling_DuoTests {
             let size = CGSize(width: precision ? 64 : 126, height: 18)
             let assets = precision ? PlatformArtwork.precision : PlatformArtwork.normal
             for index in 0..<3 {
-                #expect(UIImage(named: assets[index].name) != nil)
+                #expect(NSDataAsset(name: assets[index].name + "Texture") != nil)
                 let ledge = LedgeNode(center: CGPoint(x: 195, y: 300), size: size,
                                       isPrecision: precision, artVariant: index)
                 let art = ledge.childNode(withName: "platformArtwork") as? SKSpriteNode

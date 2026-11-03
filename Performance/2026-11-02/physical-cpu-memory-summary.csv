@@ -1,0 +1,13 @@
+variant,run,phase,phase_count,cpu_percent_one_core_median,footprint_mib_median,scene_callback_median_ms,scene_callback_p95_ms
+baseline,first,idle,18,26.76,239.635,16.666,16.667
+baseline,first,aim,18,34.765,239.713,16.666,16.666
+baseline,first,turbo,18,35.155,239.845,16.666,16.666
+baseline,repeat,idle,18,22.57,223.471,16.666,16.666
+baseline,repeat,aim,18,30.75,223.549,16.666,16.666
+baseline,repeat,turbo,18,34.035,223.69,16.666,16.666
+optimized,first,idle,18,24.0,72.626,16.666,16.666
+optimized,first,aim,18,32.96,72.751,16.666,16.666
+optimized,first,turbo,18,33.845,75.853,16.666,16.666
+optimized,repeat,idle,18,24.02,73.025,16.666,16.666
+optimized,repeat,aim,18,33.955,73.15,16.666,16.666
+optimized,repeat,turbo,18,34.115,76.174,16.666,16.666

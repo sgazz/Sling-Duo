@@ -21,14 +21,16 @@ struct ClimbDifficulty {
 final class LedgeSpawner {
     private let sceneWidth: CGFloat
     private let style: PlatformStyle
+    private let textures: GameTextureStore
 
-    init(sceneWidth: CGFloat, style: PlatformStyle = .depths) {
+    init(sceneWidth: CGFloat, style: PlatformStyle = .depths, textures: GameTextureStore = GameTextureStore()) {
+        self.textures = textures
         self.sceneWidth = sceneWidth
         self.style = style
     }
 
     func startingLedge(y: CGFloat) -> LedgeNode {
-        LedgeNode(center: CGPoint(x: sceneWidth / 2, y: y), style: style)
+        LedgeNode(center: CGPoint(x: sceneWidth / 2, y: y), style: style, textures: textures)
     }
 
     func nextLedge(above ledge: LedgeNode, score: Int) -> LedgeNode {
@@ -95,7 +97,7 @@ final class LedgeSpawner {
         let movingJump = stormMotion || (score >= 100 && score % 8 == 4 && !precisionJump)
         let result = LedgeNode(center: CGPoint(x: x, y: ledge.position.y + gap),
                          size: CGSize(width: width, height: GameConstants.ledgeSize.height),
-                         isPrecision: precisionJump, style: style, usesMovingArtwork: movingJump)
+                         isPrecision: precisionJump, style: style, usesMovingArtwork: movingJump, textures: textures)
         if score == EscapeProgress.goal - 1 { result.markExit() }
         // Every eighth destination after height 100; never combine with precision.
         if movingJump {
@@ -117,7 +119,7 @@ final class LedgeSpawner {
             bonus.position.x = abs(bonusLow - x) > abs(bonusHigh - x) ? bonusLow : bonusHigh
         }
         let trick = LedgeNode(center: CGPoint(x: x, y: bonus.position.y),
-                              size: CGSize(width: width, height: GameConstants.ledgeSize.height), style: style)
+                              size: CGSize(width: width, height: GameConstants.ledgeSize.height), style: style, textures: textures)
         trick.configureTrick()
         return trick
     }

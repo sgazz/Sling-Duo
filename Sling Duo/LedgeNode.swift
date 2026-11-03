@@ -9,20 +9,16 @@ final class LedgeNode: SKShapeNode {
     var reward: Int { isTrickPlatform ? 0 : (isMovingPlatform ? 2 : 1) }
     func configureTrick() {
         isTrickPlatform = true
-        let badge = SKLabelNode(fontNamed: "AvenirNext-Bold")
-        badge.text = "0"
-        badge.fontSize = 12
-        badge.fontColor = .white.withAlphaComponent(0.7)
-        badge.position.y = -24
-        addChild(badge)
     }
     private var motionCenter: CGFloat = 0
     private var motionTime: TimeInterval = 0
     private var motionActive = false
     private var dawnheartFragment: SKSpriteNode?
+    private let textures: GameTextureStore
 
     init(center: CGPoint, size: CGSize = GameConstants.ledgeSize, isPrecision: Bool = false,
-         artVariant: Int? = nil, style: PlatformStyle = .depths, usesMovingArtwork: Bool = false) {
+         artVariant: Int? = nil, style: PlatformStyle = .depths, usesMovingArtwork: Bool = false, textures: GameTextureStore = GameTextureStore()) {
+        self.textures = textures
         self.size = size
         self.isPrecisionPlatform = isPrecision
         super.init()
@@ -31,8 +27,6 @@ final class LedgeNode: SKShapeNode {
         let variants: [PlatformArtwork]
         switch style {
         case .depths: variants = isPrecision ? PlatformArtwork.precision : PlatformArtwork.normal
-        // The luminous rim still distinguishes precision platforms until this
-        // chapter receives its dedicated narrow-platform art set.
         case .crystal: variants = PlatformArtwork.crystal
         case .river:
             variants = usesMovingArtwork ? PlatformArtwork.riverMoving
@@ -45,10 +39,9 @@ final class LedgeNode: SKShapeNode {
         case .daybreak: variants = PlatformArtwork.daybreak
         }
         let index = max(0, min(variants.count - 1, artVariant ?? Int.random(in: 0..<variants.count)))
-        let stone = variants[index].makeSprite(width: size.width)
+        let stone = variants[index].makeSprite(width: size.width, textures: textures)
         stone.position.y = size.height / 2
         addChild(stone)
-        setTarget(false)
     }
 
     required init?(coder aDecoder: NSCoder) {
@@ -90,7 +83,7 @@ final class LedgeNode: SKShapeNode {
         opening.zPosition = 1
         light.addChild(opening)
         addChild(light)
-        let fragment = SKSpriteNode(imageNamed: "DawnheartFragment")
+        let fragment = SKSpriteNode(texture: textures.texture(named: "DawnheartFragment"))
         fragment.name = "dawnheartFragment"
         fragment.size = CGSize(width: 50, height: 50)
         fragment.position = CGPoint(x: 0, y: 100)
@@ -176,18 +169,9 @@ final class LedgeNode: SKShapeNode {
         return start + movement * entry
     }
 
+    // Targeting controls motion only; platform artwork carries no overlay markers.
     func setTarget(_ targeted: Bool) {
         motionActive = targeted && isMovingPlatform
-        removeAction(forKey: "targetPulse")
-        if isMovingPlatform {
-            strokeColor = .systemYellow
-        } else if isPrecisionPlatform {
-            strokeColor = SKColor(red: 1, green: 0.78, blue: 0.42, alpha: 1)
-        } else {
-            strokeColor = targeted
-                ? SKColor(red: 0.39, green: 0.96, blue: 0.8, alpha: 1)
-                : SKColor(red: 0.64, green: 0.74, blue: 0.98, alpha: 1)
-        }
     }
 
 }

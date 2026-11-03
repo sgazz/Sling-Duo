@@ -11,8 +11,9 @@ final class GameScene: SKScene, ObservableObject {
     private var progress = EscapeProgress()
     private var cave: CaveID = .depths
 
-    private let mint = ClimberNode(hero: .cyan)
-    private let coral = ClimberNode(hero: .orange)
+    private let textures = GameTextureStore()
+    private lazy var mint = ClimberNode(hero: .cyan, textures: textures)
+    private lazy var coral = ClimberNode(hero: .orange, textures: textures)
     private let sound = GameAudio()
     var soundEnabled: Bool {
         get { sound.enabled }
@@ -37,9 +38,8 @@ final class GameScene: SKScene, ObservableObject {
     private var happyTime: TimeInterval = 0
     private let launchHaptic = UIImpactFeedbackGenerator(style: .soft)
     private var trailClock: TimeInterval = 0
-    private let backdrop = CaveBackdrop()
+    private lazy var backdrop = CaveBackdrop(textures: textures)
     private let aim = SKNode()
-    private let predictionRope = RubberRopeSystem()
     private var touchOrigin = CGPoint.zero
     private var jumperOrigin = CGPoint.zero
     private var draggedDistance: CGFloat = 0
@@ -49,6 +49,7 @@ final class GameScene: SKScene, ObservableObject {
     private var nextLedge: LedgeNode!
     private var spawner = LedgeSpawner(sceneWidth: 390)
     private var velocity = CGVector.zero
+    private var visualTime: TimeInterval = 0
     private var previousTime: TimeInterval = 0
     private var accumulator: TimeInterval = 0
     private var drag: CGPoint?
@@ -83,6 +84,9 @@ final class GameScene: SKScene, ObservableObject {
     private var handoffTarget = CGPoint.zero
     private var ended: Bool { flow.phase == .over }
     private var flight: Bool { flow.phase == .flying }
+    #if GRAPHICS_PROFILE
+    private var graphicsProfileSession: GraphicsProfileSession?
+    #endif
     private var ready = false
 
 
@@ -108,8 +112,10 @@ final class GameScene: SKScene, ObservableObject {
             aim.addChild(dot)
         }
         aim.isHidden = true
-        layoutHUD()
         reset()
+        #if GRAPHICS_PROFILE
+        startGraphicsProfile()
+        #endif
         #if DEBUG
         scheduleUIPreview()
         #endif
@@ -149,6 +155,9 @@ final class GameScene: SKScene, ObservableObject {
     #endif
 
     override func willMove(from view: SKView) {
+        #if GRAPHICS_PROFILE
+        UIApplication.shared.isIdleTimerDisabled = false
+        #endif
         sound.suspend()
         motion.stopDeviceMotionUpdates()
     }
@@ -185,6 +194,29 @@ final class GameScene: SKScene, ObservableObject {
         self.cave = cave
         reset()
     }
+
+    func preloadCave(_ cave: CaveID) async {
+        await textures.preload(cave: cave)
+    }
+
+    func releaseCaveResources() {
+        setGameplayPaused(true)
+        removeAllActions()
+        for child in children where child !== gameCamera && child !== rope.node && child !== aim {
+            child.removeFromParent()
+        }
+        upcoming.removeAll()
+        current = nil
+        nextLedge = nil
+        anchor = nil
+        jumper = nil
+        mint.releaseArtwork()
+        coral.releaseArtwork()
+        backdrop.releaseLayers()
+        textures.release()
+    }
+
+    var cachedTextureNames: Set<String> { textures.cachedNames }
 
     func continueEndless() {
         guard progress.awaitingChoice else { return }
@@ -251,7 +283,7 @@ final class GameScene: SKScene, ObservableObject {
         // current run. Keep all gameplay state and only update layout-dependent
         // values used by the camera and subsequently spawned ledges.
         gameCamera.position.x = size.width / 2
-        spawner = LedgeSpawner(sceneWidth: size.width, style: cave.platformStyle)
+        spawner = LedgeSpawner(sceneWidth: size.width, style: cave.platformStyle, textures: textures)
         #if DEBUG
         scheduleUIPreview()
         #endif
@@ -262,12 +294,15 @@ final class GameScene: SKScene, ObservableObject {
     }
 
     private func reset() {
+        visualTime = 0
+        speed = 1
         removeAllActions()
         escapeSummary = nil
         runSummary = nil
         hudClock = 0
         progress = EscapeProgress(turbo: turboEnabled, cave: cave)
         best = UserDefaults.standard.integer(forKey: progress.recordPrefix + ".height")
+        textures.activate(cave: cave)
         buildBackdrop()
         backdrop.alpha = 1
         backgroundColor = SKColor(red: 0.055, green: 0.075, blue: 0.16, alpha: 1)
@@ -302,7 +337,7 @@ final class GameScene: SKScene, ObservableObject {
         coral.removeAllActions()
         addChild(mint)
         addChild(coral)
-        spawner = LedgeSpawner(sceneWidth: size.width, style: cave.platformStyle)
+        spawner = LedgeSpawner(sceneWidth: size.width, style: cave.platformStyle, textures: textures)
         gameCamera.position = CGPoint(x: size.width / 2, y: size.height / 2)
         current = spawner.startingLedge(y: size.height * 0.34)
         addChild(current)
@@ -328,7 +363,7 @@ final class GameScene: SKScene, ObservableObject {
 
 
         updateRunHUD()
-        rope.updateDragVisual(anchor: anchor.position, free: jumper.position)
+        rope.updateDragState(anchor: anchor.position, free: jumper.position)
         publishHUD()
     }
 
@@ -346,13 +381,22 @@ final class GameScene: SKScene, ObservableObject {
     }
 
     override func update(_ currentTime: TimeInterval) {
+        #if GRAPHICS_PROFILE
+        graphicsProfileSession?.frame(currentTime)
+        #endif
         guard ready, !userPaused, appActive else { return }
         defer {
             previousTime = currentTime
             if hudClock >= 0.1 { publishHUD(); hudClock = 0 }
         }
-        guard !ended, !progress.awaitingChoice else { return }
         let elapsed = previousTime == 0 ? 1.0 / 60 : max(0, min(1.0 / 15, currentTime - previousTime))
+        // Exit choreography runs in real time. Gameplay actions, personality and
+        // rope oscillation share the Turbo/Endless clock while a run is active.
+        if ended || progress.awaitingChoice {
+            speed = 1
+            visualTime += elapsed
+            return
+        }
         hudClock += elapsed
         if flow.phase != .ready || flow.deadlineActive { progress.advance(elapsed) }
         if turboEnabled && (flow.phase != .ready || flow.deadlineActive) {
@@ -361,7 +405,10 @@ final class GameScene: SKScene, ObservableObject {
         // Turbo and Endless are alternate pacing systems.  Use the faster one,
         // rather than multiplying them, to preserve the shared 3× safety cap.
         let multiplier = max(turboEnabled ? tempo.multiplier : 1, endlessTempo.multiplier)
-        accumulator += elapsed * multiplier
+        speed = multiplier
+        let visualDelta = elapsed * multiplier
+        visualTime += visualDelta
+        accumulator += visualDelta
         let step = 1.0 / 120
         while accumulator >= step {
             simulate(step, realDelta: step / multiplier)
@@ -376,19 +423,25 @@ final class GameScene: SKScene, ObservableObject {
         }
         fillUpcoming()
         updateRescueMeter()
-        happyTime = max(0, happyTime - elapsed)
+        happyTime = max(0, happyTime - visualDelta)
         anchor.updatePersonality(happyTime > 0 ? .happy : .calm,
-                                 lookingAt: jumper.position, deltaTime: elapsed)
+                                 lookingAt: jumper.position, deltaTime: visualDelta)
         let jumperExpression: ClimberNode.Expression = drag != nil
             ? .strained : (flow.phase == .rescue ? .dizzy : (flight ? .flying : .calm))
-        jumper.updatePersonality(jumperExpression, lookingAt: nextLedge.grabPoint, deltaTime: elapsed)
-        rope.render(anchor: anchor.ropeAttachment, free: jumper.ropeAttachment)
+        jumper.updatePersonality(jumperExpression, lookingAt: nextLedge.grabPoint, deltaTime: visualDelta)
         updateAim()
-        updateTrail(elapsed)
-        backdrop.update(travel: gameCamera.position.y - size.height / 2)
+        updateTrail(visualDelta)
         for ledge in children.compactMap({ $0 as? LedgeNode }) where ledge !== current && ledge !== nextLedge && ledge.position.y < gameCamera.position.y - size.height / 2 - 80 {
             ledge.removeFromParent()
         }
+    }
+
+    // SpriteKit has now evaluated actions, physics and constraints. Reading
+    // transformed belt points here eliminates landing/exit one-frame rope lag.
+    override func didFinishUpdate() {
+        guard ready, !userPaused, appActive else { return }
+        rope.render(anchor: anchor.ropeAttachment, free: jumper.ropeAttachment, time: visualTime)
+        backdrop.update(travel: gameCamera.position.y - size.height / 2)
     }
 
     private func publishHUD() {
@@ -439,7 +492,7 @@ final class GameScene: SKScene, ObservableObject {
             }
             jumper.position = jumper.position + (target - jumper.position) * CGFloat(1 - exp(-20 * dt))
             velocity = .zero
-            rope.updateDragVisual(anchor: anchor.position, free: jumper.position)
+            rope.updateDragState(anchor: anchor.position, free: jumper.position)
             return
         }
         if flow.phase == .handoff {
@@ -449,7 +502,7 @@ final class GameScene: SKScene, ObservableObject {
             let fraction = min(1, CGFloat(handoffElapsed / JumpTuning.handoffDuration))
             let eased = fraction * fraction * (3 - 2 * fraction)
             jumper.position = handoffStart + (handoffTarget - handoffStart) * eased
-            rope.updateDragVisual(anchor: anchor.position, free: jumper.position)
+            rope.updateDragState(anchor: anchor.position, free: jumper.position)
             if flow.advance(dt, y: jumper.position.y, verticalSpeed: 0, targetY: nextLedge.grabPoint.y, realDelta: realDelta) == .launchPartner {
                 velocity = PartnerLaunch.velocity(from: jumper.position, anchor: anchor.position, target: nextLedge.grabPoint)
                 rope.reset()
@@ -707,21 +760,17 @@ final class GameScene: SKScene, ObservableObject {
         coral.updatePersonality(.happy, lookingAt: current.grabPoint, deltaTime: 0)
 
 
+        speed = 1
         // Bring both partners to the exit before offering the endless continuation.
         anchor.run(.move(to: current.grabPoint + CGVector(dx: -20, dy: 5), duration: 0.45))
         jumper.run(.move(to: current.grabPoint + CGVector(dx: 20, dy: 5), duration: 0.45))
         gameCamera.run(.moveTo(y: max(gameCamera.position.y, current.position.y + size.height * 0.12), duration: 0.4))
-        run(.customAction(withDuration: 0.5) { [weak self] _, _ in
-            guard let self else { return }
-            self.rope.render(anchor: self.anchor.ropeAttachment, free: self.jumper.ropeAttachment)
-        }, withKey: "exitRope")
         sound.play(.grab, step: 4)
         UINotificationFeedbackGenerator().notificationOccurred(.success)
         run(.sequence([.wait(forDuration: 0.55), .run { [weak self] in
             self?.current.collectDawnheartFragment()
         }, .wait(forDuration: 0.58), .run { [weak self] in
             guard let self else { return }
-            self.rope.render(anchor: self.anchor.ropeAttachment, free: self.jumper.ropeAttachment)
             self.publishHUD()
             self.escapeSummary = EscapeSummary(points: self.points, seconds: self.progress.seconds,
                 longestCombo: self.progress.longestCombo, turbo: self.progress.usedTurbo, cave: self.cave)
@@ -729,18 +778,17 @@ final class GameScene: SKScene, ObservableObject {
     }
 
     // The guide advances the same spring, gravity and damping as the live jumper.
-    // Its rope has independent state so previewing cannot charge the live rope.
+    // Pure dynamics keep the guide independent of live rope state and rendering.
     private func updateAim() {
         aim.isHidden = drag == nil || draggedDistance <= 8
         guard !aim.isHidden else { return }
-        predictionRope.reset()
         var position = jumper.position
         var predictedVelocity = rope.slingshotVelocity(anchor: anchor.position, free: position, target: nextLedge.grabPoint)
         let dt = 1.0 / 120
         for dot in aim.children {
             for _ in 0..<6 {
                 var force = GameConstants.gravity
-                force += predictionRope.springForce(anchor: anchor.position, free: position, velocity: predictedVelocity, deltaTime: dt)
+                force += RopeDynamics.force(anchor: anchor.position, free: position, velocity: predictedVelocity)
                 predictedVelocity += force * CGFloat(dt)
                 predictedVelocity = predictedVelocity * CGFloat(pow(Double(GameConstants.damping), dt * 60))
                 position = position + predictedVelocity * CGFloat(dt)
@@ -814,3 +862,53 @@ final class GameScene: SKScene, ObservableObject {
         publishHUD()
     }
 }
+
+#if GRAPHICS_PROFILE
+extension GameScene {
+    private func startGraphicsProfile() {
+        // Automated captures have no touches; prevent auto-lock while this
+        // opt-in profiling app remains in the foreground.
+        UIApplication.shared.isIdleTimerDisabled = true
+        let session = GraphicsProfileSession()
+        graphicsProfileSession = session
+        Task { @MainActor in
+            // Warm the view before comparing steady-state phases.
+            try? await Task.sleep(for: .seconds(2))
+            for round in 0..<2 {
+                for cave in CaveID.allCases {
+                    releaseCaveResources()
+                    await preloadCave(cave)
+                    selectCave(cave)
+                    setGameplayPaused(false)
+                    session.begin("round\(round)-\(cave.rawValue)-idle")
+                    try? await Task.sleep(for: .seconds(2))
+                    session.end(textureCount: cachedTextureNames.count)
+
+                    _ = flow.beginAim()
+                    draggedDistance = 100
+                    drag = anchor.position + CGVector(dx: 40, dy: -100)
+                    session.begin("round\(round)-\(cave.rawValue)-aim")
+                    try? await Task.sleep(for: .seconds(2))
+                    session.end(textureCount: cachedTextureNames.count)
+
+                    velocity = rope.slingshotVelocity(anchor: anchor.position, free: jumper.position,
+                                                      target: nextLedge.grabPoint)
+                    drag = nil
+                    flow.launch()
+                    turboEnabled = true
+                    tempo.advance(200)
+                    session.begin("round\(round)-\(cave.rawValue)-turbo")
+                    try? await Task.sleep(for: .seconds(1))
+                    session.end(textureCount: cachedTextureNames.count)
+                    turboEnabled = false
+                }
+            }
+            releaseCaveResources()
+            session.begin("released")
+            try? await Task.sleep(for: .seconds(2))
+            session.end(textureCount: cachedTextureNames.count)
+            graphicsProfileSession = nil
+        }
+    }
+}
+#endif

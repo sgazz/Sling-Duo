@@ -45,11 +45,10 @@ final class RubberRopeSystem {
         tension = 0
     }
 
-    func updateDragVisual(anchor: CGPoint, free: CGPoint) {
+    func updateDragState(anchor: CGPoint, free: CGPoint) {
         let distance = (free - anchor).length
         tension = min(GameConstants.maxTension, distance / GameConstants.maxDragDistance)
         overstretchTime = 0
-        updateVisual(anchor: anchor, free: free, distance: distance)
     }
 
     func pulse() {
@@ -80,10 +79,10 @@ final class RubberRopeSystem {
         ]), withKey: "ropeRelease")
     }
 
+    // Physics steps update failure timing only; paths are built by render().
     func springForce(anchor: CGPoint, free: CGPoint, velocity: CGVector, deltaTime: TimeInterval) -> CGVector {
         let offset = anchor - free
         let distance = offset.length
-        updateVisual(anchor: anchor, free: free, distance: distance)
 
         guard distance > GameConstants.restLength + GameConstants.ropeSlackBeforePull else {
             overstretchTime = 0
@@ -119,11 +118,11 @@ final class RubberRopeSystem {
         overstretchTime > GameConstants.overstretchGrace
     }
 
-    func render(anchor: CGPoint, free: CGPoint) {
-        updateVisual(anchor: anchor, free: free, distance: (free - anchor).length)
+    func render(anchor: CGPoint, free: CGPoint, time: TimeInterval) {
+        updateVisual(anchor: anchor, free: free, distance: (free - anchor).length, time: time)
     }
 
-    private func updateVisual(anchor: CGPoint, free: CGPoint, distance: CGFloat) {
+    private func updateVisual(anchor: CGPoint, free: CGPoint, distance: CGFloat, time: TimeInterval) {
         let stretch = min(1, max(0, (distance - GameConstants.restLength) /
             (GameConstants.maxStretchLength - GameConstants.restLength)))
         let energy = max(stretch, tension)
@@ -133,7 +132,7 @@ final class RubberRopeSystem {
         let sag = min(distance * 0.22, 25) * slack * (1 - tension)
         let direction = (free - anchor).normalized()
         let normal = CGVector(dx: -direction.dy, dy: direction.dx)
-        let shiver = sin(CACurrentMediaTime() * 32) * max(0, energy - 0.85) * 4
+        let shiver = sin(time * 32) * max(0, energy - 0.85) * 4
         let recoil = releaseProgress < 1
             ? sin(releaseProgress * .pi * 4) * (1 - releaseProgress) * 7 : 0
         let control = CGPoint(x: (anchor.x + free.x) / 2,
