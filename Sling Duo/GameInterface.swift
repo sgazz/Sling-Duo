@@ -45,7 +45,6 @@ struct CaveMapView: View {
     let stormUnlocked: Bool
     let daybreakUnlocked: Bool
     let fragmentMask: Int
-    let unlocksAllCaves: Bool
     let select: (CaveID) -> Void
     var back: (() -> Void)? = nil
 
@@ -58,19 +57,19 @@ struct CaveMapView: View {
                     VStack(spacing: 8) {
                         Text("SLING DUO").font(.caption.bold()).tracking(4).foregroundStyle(GamePalette.mint)
                         Text("Choose a cave").font(.system(.largeTitle, design: .rounded, weight: .heavy))
-                        Text(unlocksAllCaves ? "All caves are open for testing." : "Each exit reveals the way forward.")
+                        Text("Each exit reveals the way forward.")
                             .font(.subheadline).foregroundStyle(.white.opacity(0.62))
                     }.padding(.top, 42)
                     DawnheartProgress(fragmentMask: fragmentMask, total: CaveID.allCases.count)
                     caveCard(.depths, unlocked: true)
-                    caveCard(.crystalCavern, unlocked: unlocksAllCaves || crystalUnlocked)
-                    caveCard(.undergroundRiver, unlocked: unlocksAllCaves || riverUnlocked)
-                    caveCard(.ancientRuins, unlocked: unlocksAllCaves || ruinsUnlocked)
-                    caveCard(.volcanicPassage, unlocked: unlocksAllCaves || volcanicUnlocked)
-                    caveCard(.frozenRift, unlocked: unlocksAllCaves || frozenUnlocked)
-                    caveCard(.glowrootGrotto, unlocked: unlocksAllCaves || glowrootUnlocked)
-                    caveCard(.stormChasm, unlocked: unlocksAllCaves || stormUnlocked)
-                    caveCard(.daybreakExit, unlocked: unlocksAllCaves || daybreakUnlocked)
+                    caveCard(.crystalCavern, unlocked: crystalUnlocked)
+                    caveCard(.undergroundRiver, unlocked: riverUnlocked)
+                    caveCard(.ancientRuins, unlocked: ruinsUnlocked)
+                    caveCard(.volcanicPassage, unlocked: volcanicUnlocked)
+                    caveCard(.frozenRift, unlocked: frozenUnlocked)
+                    caveCard(.glowrootGrotto, unlocked: glowrootUnlocked)
+                    caveCard(.stormChasm, unlocked: stormUnlocked)
+                    caveCard(.daybreakExit, unlocked: daybreakUnlocked)
                 }
                 .padding(.horizontal, 20).padding(.bottom, 40)
                 .frame(maxWidth: 520)
