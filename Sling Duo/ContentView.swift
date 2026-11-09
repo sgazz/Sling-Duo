@@ -28,13 +28,6 @@ struct ContentView: View {
     @State private var tutorialFromPause = false
     @State private var introPresented = false
 
-    // All expedition cards stay open in development for rapid visual testing.
-    // Release builds always use normal campaign progression.
-    #if DEBUG
-    private let allCavesUnlockedForTesting = true
-    #else
-    private let allCavesUnlockedForTesting = false
-    #endif
     private var dawnheartFragments: Int { dawnheartFragmentMask.nonzeroBitCount }
 
     var body: some View {
@@ -46,7 +39,7 @@ struct ContentView: View {
                             ruinsUnlocked: ancientRuinsUnlocked, volcanicUnlocked: volcanicPassageUnlocked,
                             frozenUnlocked: frozenRiftUnlocked, glowrootUnlocked: glowrootGrottoUnlocked,
                             stormUnlocked: stormChasmUnlocked, daybreakUnlocked: daybreakExitUnlocked,
-                            fragmentMask: dawnheartFragmentMask, unlocksAllCaves: allCavesUnlockedForTesting, select: start,
+                            fragmentMask: dawnheartFragmentMask, select: start,
                             back: selectedCave == nil ? nil : { backToPause() })
             } else {
                 ZStack {
@@ -241,8 +234,7 @@ struct ContentView: View {
                 Button("Enter \(next.title)") {
                     start(next)
                 }.buttonStyle(GameActionStyle()).accessibilityIdentifier("nextCave")
-                Text(allCavesUnlockedForTesting ? "Choose any expedition from the Cave Map while testing."
-                     : "The way to the next cave is now open. Each expedition has its own records.")
+                Text("The way to the next cave is now open. Each expedition has its own records.")
                     .font(.caption).foregroundStyle(.white.opacity(0.5)).multilineTextAlignment(.center).padding(.top, -12)
             }
             Button("Keep Climbing") {
