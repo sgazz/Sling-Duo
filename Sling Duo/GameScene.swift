@@ -769,6 +769,7 @@ final class GameScene: SKScene, ObservableObject {
         UINotificationFeedbackGenerator().notificationOccurred(.success)
         run(.sequence([.wait(forDuration: 0.55), .run { [weak self] in
             self?.current.collectDawnheartFragment()
+            self?.sound.play(.winner)
         }, .wait(forDuration: 0.58), .run { [weak self] in
             guard let self else { return }
             self.publishHUD()

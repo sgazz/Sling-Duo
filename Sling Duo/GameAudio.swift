@@ -1,7 +1,7 @@
 import AVFoundation
 
 nonisolated enum AudioCue: String, CaseIterable, Sendable {
-    case launch, grab, miss, end
+    case launch, grab, miss, end, winner
 }
 
 /// Main-thread facade. Audio I/O and session changes are serialized off the UI thread.
