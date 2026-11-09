@@ -1,66 +1,48 @@
 # Sling Duo
 
-An iPhone and iPad arcade prototype about two climbers connected by an elastic rope. Launch once, steer with tilt, and keep the pair climbing in rhythm.
+**Two climbers. One elastic rope. A way back to daylight.**
 
-## Caves, Escape and Endless
+Sling Duo is a single-player arcade game for iPhone and iPad. Launch one climber, steer through the cave, catch a platform, and let the rope send their partner upward. Keep the rhythm going until the duo escapes.
 
-Choose an expedition from the Cave Map. Each cave is a separate Escape: reach platform 150 to exit it. The Depths is available at first; exiting it permanently unlocks Crystal Cavern. At an exit the duo celebrates and the result offers the next cave, the map, or Endless continuation. Pauses, countdowns and the victory screen do not add to the run timer.
+<p align="center">
+  <img src="docs/images/sling-duo-depths.jpg" alt="Sling Duo gameplay in The Depths" width="280">
+  &nbsp;&nbsp;
+  <img src="docs/images/sling-duo-crystal-cavern.jpg" alt="Sling Duo gameplay in Crystal Cavern" width="280">
+</p>
 
-Height, score, combo and fastest Escape records are stored separately for each cave and for normal and Turbo runs. Once Turbo is used, the remainder of that run stays in the Turbo record category even if the switch is disabled.
+## How to play
 
-## Play
+- Drag and release to launch the first climber.
+- Steer in flight using device tilt or optional touch-based Slide controls.
+- Catch a platform to automatically launch the partner.
+- Reach 150 catches to escape a cave and unlock the next expedition.
+- Build combos, land perfect catches, and continue climbing in Endless mode.
 
-- Drag and release to make the first sling. Your comfortable phone angle at release becomes the neutral tilt position.
-- Tilt left or right to steer the airborne climber, or choose Controls: Slide in the pause menu. In Slide mode, touch anywhere during flight and drag horizontally relative to that touch; release to brake. The choice survives relaunches.
-- Catch a platform to swap roles and automatically launch the partner.
-- The first manual pull starts a four-second deadline. It continues through release, flight and repeated misses; only a successful catch restores it. After an automatic jump misses, the same rescue deadline starts.
-- Choose Try Again on the result screen to restart. Records are saved locally.
-- Pause with the pause button; Continue gives a three-second countdown. Returning from the background also requires Continue.
-- HEIGHT counts catches; SCORE awards one point per catch and two for moving platforms. Descending catches in the central 30% of a platform earn +1 PERFECT. Every fifth consecutive catch earns +2 COMBO. A miss or a trick platform breaks the streak; trick platforms always give zero points.
-- Use the speaker button to mute sound; the preference survives relaunches.
+## Features
 
-The first three jumps are forgiving. Later platforms require sideways steering, and small gold platforms appear from the seventh jump, once every five jumps. Automatic launches provide height rather than horizontal aim. The route is visible ahead to fill the viewport. After height 100, occasional gold platforms move slowly sideways and award double points; precision platforms never move. Each moving 2× platform has an alternative 0-point trick platform at the same height. Both can be caught; choosing the trick continues the climb without awarding points.
+- Nine visually distinct caves and a progressive campaign
+- Tilt and touch controls
+- Per-cave scores, combos, height, and fastest Escape records
+- Moving, precision, and trick platforms
+- Optional Turbo mode with separate records
+- Offline play with no accounts, ads, analytics, or in-app purchases
+- Local progress and preferences
 
-Experimental Turbo is available in the pause menu (Off by default). Every five active seconds it adds 5% to simulation speed, reaching 3× after 200 seconds. Pauses and resume countdown do not advance it. Restarting a run or toggling the mode resets the ramp. Rescue deadlines remain real-time.
+## Run the project
 
-## Interface
+1. Open `Sling Duo.xcodeproj` in Xcode.
+2. Select the **Sling Duo** scheme and your signing team.
+3. Run on an iPhone or iPad with iOS 17.6 or newer.
 
-The default Compact HUD shows height and points in one narrow row. Pause → HUD cycles Compact, Hidden and Full, and saves the preference. Hidden retains only Pause and any active deadline warning. Full shows Escape progress, height, points, combo, active time and Turbo tempo. The rescue card displays the remaining deadline to one decimal place and changes color in the last second. Informational overlays pass touches through to the game.
+A physical device is recommended for tilt controls, haptics, and audio behavior. Unit and UI tests can be run with **Product → Test**.
 
-A short first-launch guide introduces sling, steering and the deadline, and lets players choose Tilt or Slide. It can be reopened from How to Play in Pause. Pause, defeat and victory use a shared scrollable panel that adapts to phones and tablets, with explicit buttons for restarting or continuing.
+## Built with
 
-## Run
+SwiftUI, SpriteKit, Core Motion, UIKit, and AVFoundation.
 
-Open `Sling Duo.xcodeproj`, select the **Sling Duo** scheme, choose your signing team, and run on an iPhone. The app targets iOS 17.6 or newer; development and builds currently use Xcode 27.1.
+## Privacy and support
 
-A physical iPhone is needed to evaluate tilt, haptics, and silent-switch behavior. Simulator builds are useful for visual checks and automated tests.
+Sling Duo processes motion input on-device and does not collect or transmit personal data.
 
-## Code
-
-- `GameScene.swift`: game flow, touch handling, Core Motion, camera, feedback, and throttled HUD snapshots.
-- `ContentView.swift` / `GameInterface.swift`: native HUD, onboarding, pause, countdown, and result screens.
-- `JumpMechanics.swift`: jump states, calibrated tilt response, shared physics, automatic launch solver, and camera behavior.
-- `LedgeSpawner.swift` / `LedgeNode.swift`: progressive routes, precision platforms, and swept grab detection.
-- `ClimberNode.swift` / `RubberRopeSystem.swift`: characters and rope presentation.
-- `GameAudio.swift` / `Sounds/`: short synthesized effects using ambient audio playback.
-
-## Tests
-
-Run the test targets with **Product → Test** in Xcode. Unit tests cover jump transitions, rescue timing, tilt response, reachability, precision platforms, and preventing unattended climbing. UI tests cover onboarding, help, HUD touch-through, pause/resume, background interruption, settings persistence, rescue UI, and both result flows.
-
-This repository is an actively tuned gameplay prototype.
-
-## Graphics resources and profiling
-
-Gameplay textures are exported from `ArtSources/` with `Tools/export_game_textures.py`.
-Hero UI illustrations are separate from gameplay images. `GameTextureStore` preloads
-only the active cave and shared hero/fragment package; leaving the cave releases
-app-owned texture and node references. Platform targeting controls motion without
-rendering target/precision/moving overlays.
-
-See `ArtSources/README.md` for export sizes and pivot preservation, and
-`Tools/GRAPHICS_PROFILING.md` for repeatable Release device measurements. The
-`GRAPHICS_PROFILE` flag is opt-in and excluded from ordinary builds. Saved validation
-and simulator-only measurements are in `Performance/2026-11-02/`; physical-device
-CPU/memory paired results are saved in `Performance/2026-11-02/physical-device.md`.
-Matched GPU results cover all nine caves and all 27 first-round phases per version.
+- [Privacy Policy](https://sgazz.github.io/Sling-Duo/privacy.html)
+- [Support](https://sgazz.github.io/Sling-Duo/support.html)
